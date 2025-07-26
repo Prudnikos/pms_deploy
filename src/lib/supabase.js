@@ -1,0 +1,7 @@
+import { createClient } from '@supabase/supabase-js';
+
+// Замени заглушки на твои реальные данные из панели Supabase
+const supabaseUrl = 'https://zbhvwxpvlxqxadqzshfc.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiaHZ3eHB2bHhxeGFkcXpzaGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5MjUzNzQsImV4cCI6MjA2NzUwMTM3NH0.TfyuqzBbK-8CIQ-8sTKrH4nMHW7w28nPIhtTLi9Olsc';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
