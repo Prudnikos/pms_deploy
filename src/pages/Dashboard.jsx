@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+// ИЗМЕНЕНИЕ 1: Импортируем иконку выхода
+import { ChevronLeft, ChevronRight, Plus, LogOut } from 'lucide-react';
 import BookingGrid from '../components/dashboard/BookingGrid';
 import NewBookingModal from '../components/dashboard/NewBookingModal';
-// ИЗМЕНЕНИЕ: Импортируем getBookingsForRange вместо getBookings
 import { getBookingsForRange, getRooms, getServices } from '@/components/integrations/Supabase';
+import { useAuth } from '@/components/auth/AuthProvider'; // ИЗМЕНЕНИЕ 2: Импортируем useAuth
 
 export default function Dashboard() {
-  // СОХРАНЕНО: Все ваши состояния остаются без изменений
   const [bookings, setBookings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [services, setServices] = useState([]);
@@ -22,8 +22,19 @@ export default function Dashboard() {
   const [showNewBookingModal, setShowNewBookingModal] = useState(false);
   const [selectedCell, setSelectedCell] = useState(null);
   const [editingBooking, setEditingBooking] = useState(null);
+  
+  // ИЗМЕНЕНИЕ 3: Получаем функцию signOut из AuthProvider
+  const { signOut } = useAuth();
 
-  // ИЗМЕНЕНИЕ: Новая, эффективная функция загрузки данных только для видимого диапазона
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  // ... (весь ваш остальной код с fetchDataForRange, useEffect, handleBookingSaved и т.д. остается без изменений) ...
   const fetchDataForRange = useCallback(async (startDate, endDate) => {
     setLoading(true);
     setError('');
@@ -39,14 +50,12 @@ export default function Dashboard() {
     }
   }, []);
   
-  // ИЗМЕНЕНИЕ: Этот хук теперь следит за сменой месяца и перезагружает данные
   useEffect(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     fetchDataForRange(monthStart, monthEnd);
   }, [currentMonth, fetchDataForRange]);
 
-  // ИЗМЕНЕНИЕ: Загрузка комнат и услуг теперь происходит отдельно и один раз
   useEffect(() => {
     const fetchStaticData = async () => {
       try {
@@ -63,7 +72,6 @@ export default function Dashboard() {
     fetchStaticData();
   }, []);
 
-  // ИЗМЕНЕНИЕ: handleBookingSaved теперь перезагружает только текущий месяц
   const handleBookingSaved = () => {
     setShowNewBookingModal(false);
     setSelectedCell(null);
@@ -73,7 +81,6 @@ export default function Dashboard() {
     fetchDataForRange(monthStart, monthEnd);
   };
   
-  // СОХРАНЕНО: Вся ваша логика для кликов и выделения остается без изменений
   const handleCellClick = (roomId, date) => {
     setSelectedCell({ roomId, checkIn: date, checkOut: addMonths(date, 1) });
     setShowNewBookingModal(true);
@@ -87,14 +94,12 @@ export default function Dashboard() {
     setShowNewBookingModal(true);
   };
 
-  // ИЗМЕНЕНИЕ: Функция навигации теперь просто меняет месяц, а useEffect делает остальное
   const navigateMonth = (direction) => {
     setCurrentMonth(current => addMonths(current, direction));
   };
   
   const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
 
-  // Скелетон загрузки (без изменений)
   if (rooms.length === 0) {
     return (
       <div className="p-6 space-y-6">
@@ -114,13 +119,20 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold text-slate-800">Booking Calendar</h1>
           <p className="text-slate-600 mt-1">Manage your reservations</p>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2"> {/* Изменил space-x-4 на space-x-2 */}
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="icon" onClick={() => navigateMonth(-1)}><ChevronLeft className="h-4 w-4" /></Button>
             <div className="min-w-[160px] text-center"><span className="text-lg font-semibold text-slate-800">{format(currentMonth, 'LLLL yyyy', { locale: ru })}</span></div>
             <Button variant="outline" size="icon" onClick={() => navigateMonth(1)}><ChevronRight className="h-4 w-4" /></Button>
           </div>
           <Button onClick={() => setShowNewBookingModal(true)}><Plus className="h-4 w-4 mr-2" />New reservation</Button>
+          
+          {/* V-- ВОТ ВАША НОВАЯ КНОПКА ВЫХОДА --V */}
+          <Button variant="outline" size="icon" onClick={handleSignOut} title="Выйти">
+            <LogOut className="h-4 w-4 text-slate-600" />
+          </Button>
+          {/* A------------------------------------A */}
+
         </div>
       </div>
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
