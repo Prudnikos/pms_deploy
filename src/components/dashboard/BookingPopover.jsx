@@ -1,85 +1,136 @@
 import React from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, User, MessageCircle } from 'lucide-react';
+import { Calendar, User, MessageCircle, CreditCard, Package, Clock, AlertTriangle } from 'lucide-react';
 
-const statusColors = {
-  'confirmed': 'bg-green-100 text-green-800',
-  'pending': 'bg-yellow-100 text-yellow-800',
-  'cancelled': 'bg-red-100 text-red-800', 
-  'checked_in': 'bg-purple-100 text-purple-800',
-  'checked_out': 'bg-blue-100 text-blue-800'
+const statusGradients = {
+  'confirmed': 'from-emerald-400 to-green-500',
+  'pending': 'from-amber-400 to-yellow-500',
+  'cancelled': 'from-rose-400 to-red-500',
+  'checked_in': 'from-violet-400 to-purple-500',
+  'checked_out': 'from-sky-400 to-blue-500'
 };
 
 const statusLabels = {
   'confirmed': 'Подтверждено',
-  'pending': 'Не подтверждено',
+  'pending': 'Ожидает',
   'cancelled': 'Отменено',
-  'checked_in': 'Проживание',
-  'checked_out': 'Выезд'
+  'checked_in': 'Проживает',
+  'checked_out': 'Выехал'
+};
+
+const statusIcons = {
+  'confirmed': '✅',
+  'pending': '⏳',
+  'cancelled': '❌',
+  'checked_in': '🏠',
+  'checked_out': '✈️'
 };
 
 export default function BookingPopover({ booking, position, onClose }) {
   if (!booking) return null;
 
   const accommodationTotal = booking.total_amount - (booking.services_total || 0);
+  const unpaidAmount = booking.total_amount - (booking.amount_paid || 0);
+  const duration = differenceInDays(parseISO(booking.check_out), parseISO(booking.check_in));
 
   return (
     <div 
       className="fixed z-50 pointer-events-none" 
       style={{ 
-        left: position.x + 10, 
+        left: Math.min(position.x + 10, window.innerWidth - 350), 
         top: position.y - 10, 
         transform: 'translateY(-100%)' 
       }}
     >
-      <Card className="w-80 shadow-xl border-0 bg-white/95 backdrop-blur-md">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold text-slate-800">
-              {booking.guests?.full_name || 'Гость'}
-            </CardTitle>
-            <Badge className={statusColors[booking.status]}>
-              {statusLabels[booking.status]}
-            </Badge>
+      <Card className="w-80 shadow-2xl border-0 bg-white/95 backdrop-blur-xl overflow-hidden">
+        {/* Градиентный хедер */}
+        <div className={`h-1 bg-gradient-to-r ${statusGradients[booking.status]}`} />
+        
+        <CardHeader className="pb-3 bg-gradient-to-br from-slate-50 to-blue-50/50">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <User className="h-4 w-4 text-blue-600" />
+                {booking.guests?.full_name || 'Гость'}
+              </CardTitle>
+            </div>
+            <div className={`
+              px-2.5 py-1 rounded-full text-xs font-medium text-white
+              bg-gradient-to-r ${statusGradients[booking.status]} shadow-md
+              flex items-center gap-1
+            `}>
+              <span>{statusIcons[booking.status]}</span>
+              <span>{statusLabels[booking.status]}</span>
+            </div>
           </div>
         </CardHeader>
         
-        <CardContent className="space-y-3">
-          <div className="flex items-center space-x-2 text-sm text-slate-600">
-            <Calendar className="h-4 w-4" />
-            <span>
-              {format(parseISO(booking.check_in), 'dd MMMM', { locale: ru })} - {format(parseISO(booking.check_out), 'dd MMMM', { locale: ru })}
-            </span>
+        <CardContent className="space-y-3 pt-3">
+          {/* Даты проживания */}
+          <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
+                <Calendar className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Период проживания</p>
+                <p className="text-sm font-semibold text-slate-800">
+                  {format(parseISO(booking.check_in), 'dd MMM', { locale: ru })} — {format(parseISO(booking.check_out), 'dd MMM', { locale: ru })}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-slate-500">Длительность</p>
+              <p className="text-sm font-bold text-blue-600">{duration} {duration === 1 ? 'день' : duration < 5 ? 'дня' : 'дней'}</p>
+            </div>
           </div>
           
-          <div className="flex items-center space-x-2 text-sm text-slate-600">
-            <User className="h-4 w-4" />
-            <span>{booking.guests_count || 1} гост{booking.guests_count === 1 ? 'ь' : 'ей'}</span>
+          {/* Количество гостей */}
+          <div className="flex items-center gap-3 px-3">
+            <div className="p-1.5 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg">
+              <User className="h-3.5 w-3.5 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-slate-500">Количество гостей</p>
+              <p className="text-sm font-semibold text-slate-800">
+                {booking.guests_count || 1} {booking.guests_count === 1 ? 'гость' : 'гостей'}
+              </p>
+            </div>
           </div>
 
           {/* Комментарий к брони */}
           {booking.notes && (
-            <div className="flex items-start space-x-2 text-sm text-slate-600">
-              <MessageCircle className="h-4 w-4 mt-0.5" />
-              <div>
-                <p className="font-medium">Комментарий:</p>
-                <p className="text-slate-500">{booking.notes}</p>
+            <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl">
+              <div className="flex items-start gap-2">
+                <MessageCircle className="h-4 w-4 text-orange-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-orange-700 mb-1">Комментарий</p>
+                  <p className="text-sm text-slate-600">{booking.notes}</p>
+                </div>
               </div>
             </div>
           )}
 
           {/* Список заказанных услуг */}
           {booking.booking_services && booking.booking_services.length > 0 && (
-            <div className="text-sm">
-              <p className="font-medium text-slate-700 mb-1">Заказанные услуги:</p>
-              <div className="space-y-1">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 px-3">
+                <Package className="h-4 w-4 text-purple-600" />
+                <p className="text-sm font-semibold text-slate-700">Дополнительные услуги</p>
+              </div>
+              <div className="space-y-1 px-3">
                 {booking.booking_services.map((bs) => (
-                  <div key={bs.id} className="flex justify-between text-slate-600">
-                    <span>{bs.services?.name} x {bs.quantity}</span>
-                    <span>{(bs.price_at_booking * bs.quantity).toLocaleString()} ₽</span>
+                  <div key={bs.id} className="flex justify-between items-center py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                    <span className="text-sm text-slate-600">
+                      {bs.services?.name} 
+                      <span className="text-xs text-slate-400 ml-1">×{bs.quantity}</span>
+                    </span>
+                    <span className="text-sm font-medium text-slate-800">
+                      {(bs.price_at_booking * bs.quantity).toLocaleString()} ₽
+                    </span>
                   </div>
                 ))}
               </div>
@@ -87,23 +138,62 @@ export default function BookingPopover({ booking, position, onClose }) {
           )}
           
           {/* Финансовая сводка */}
-          <div className="border-t pt-3 mt-3 space-y-1 text-xs">
-             <div className="flex justify-between">
-               <span>Проживание:</span> 
-               <span>{accommodationTotal.toLocaleString()} ₽</span>
-             </div>
-             <div className="flex justify-between">
-               <span>Услуги:</span> 
-               <span>{(booking.services_total || 0).toLocaleString()} ₽</span>
-             </div>
-             <div className="flex justify-between text-green-600">
-               <span className="font-medium">Оплачено:</span> 
-               <span className="font-medium">{(booking.amount_paid || 0).toLocaleString()} ₽</span>
-             </div>
-             <div className="flex justify-between font-bold text-sm text-slate-800">
-               <span>К оплате:</span> 
-               <span>{(booking.total_amount - (booking.amount_paid || 0)).toLocaleString()} ₽</span>
-             </div>
+          <div className="border-t border-slate-200/50 pt-3 mt-3 space-y-2">
+            <div className="space-y-1.5 px-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-600">Проживание</span> 
+                <span className="text-sm font-medium">{accommodationTotal.toLocaleString()} ₽</span>
+              </div>
+              {booking.services_total > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Услуги</span> 
+                  <span className="text-sm font-medium">{(booking.services_total || 0).toLocaleString()} ₽</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-1 border-t border-slate-200/50">
+                <span className="text-sm font-semibold text-slate-700">Итого</span> 
+                <span className="text-sm font-bold text-slate-800">{booking.total_amount.toLocaleString()} ₽</span>
+              </div>
+            </div>
+            
+            {/* Статус оплаты */}
+            <div className={`
+              mx-3 p-3 rounded-xl
+              ${unpaidAmount > 0 
+                ? 'bg-gradient-to-r from-amber-100 to-orange-100 border border-orange-200' 
+                : 'bg-gradient-to-r from-emerald-100 to-green-100 border border-green-200'
+              }
+            `}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {unpaidAmount > 0 ? (
+                    <>
+                      <AlertTriangle className="h-4 w-4 text-orange-600" />
+                      <span className="text-sm font-medium text-orange-700">К оплате</span>
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-700">Оплачено полностью</span>
+                    </>
+                  )}
+                </div>
+                <span className={`text-lg font-bold ${unpaidAmount > 0 ? 'text-orange-700' : 'text-green-700'}`}>
+                  {unpaidAmount > 0 ? `${unpaidAmount.toLocaleString()} ₽` : '✓'}
+                </span>
+              </div>
+              
+              {booking.amount_paid > 0 && unpaidAmount > 0 && (
+                <div className="mt-2 pt-2 border-t border-orange-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-600">Уже оплачено</span>
+                    <span className="text-xs font-medium text-green-600">
+                      {booking.amount_paid.toLocaleString()} ₽
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

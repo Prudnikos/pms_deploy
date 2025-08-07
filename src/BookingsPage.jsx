@@ -5,28 +5,31 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import NewBookingModal from '../components/dashboard/NewBookingModal';
-import SourceIcon from '@/components/SourceIcon'; // Укажите правильный путь к вашему компоненту
+import SourceIcon from '@/components/SourceIcon'; // Убедитесь, что путь к компоненту верный
 
-const statusColors = { 
-  'confirmed': 'bg-green-100 text-green-800', 
-  'pending': 'bg-yellow-100 text-yellow-800', 
-  'cancelled': 'bg-red-100 text-red-800', 
-  'checked_in': 'bg-purple-100 text-purple-800', 
-  'checked_out': 'bg-blue-100 text-blue-800' 
+// Константы для статусов
+const statusColors = {
+  'confirmed': 'bg-green-100 text-green-800',
+  'pending': 'bg-yellow-100 text-yellow-800',
+  'cancelled': 'bg-red-100 text-red-800',
+  'checked_in': 'bg-purple-100 text-purple-800',
+  'checked_out': 'bg-blue-100 text-blue-800'
 };
 
-const statusLabels = { 
-  'confirmed': 'Подтверждено', 
-  'pending': 'Не подтверждено', 
+const statusLabels = {
+  'confirmed': 'Подтверждено',
+  'pending': 'Не подтверждено',
   'cancelled': 'Отменено',
-  'checked_in': 'Проживание', 
-  'checked_out': 'Выезд' 
+  'checked_in': 'Проживание',
+  'checked_out': 'Выезд'
 };
 
+// Основной компонент страницы
 export default function BookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,67 +40,76 @@ export default function BookingsPage() {
   const [rooms, setRooms] = useState([]);
   const [services, setServices] = useState([]);
 
-  useEffect(() => { 
-    fetchData(); 
+  useEffect(() => {
+    fetchData();
   }, []);
-// ... внутри компонента BookingsPage, перед return
-const handleNewBookingClick = () => {
-  setSelectedBooking(null); // Убедимся, что нет выбранной брони для редактирования
-  setShowModal(true);
-};
 
-
+  // Функция для загрузки всех данных
   const fetchData = async () => {
     setLoading(true);
-    const [{ data: bookingsData }, { data: roomsData }, { data: servicesData }] = await Promise.all([ 
-      getBookings(), 
-      getRooms(), 
-      getServices() 
-    ]);
-    setBookings(bookingsData?.bookings || []);
-    setRooms(roomsData?.rooms || []);
-    setServices(servicesData?.services || []);
-    setLoading(false);
+    try {
+        const [{ data: bookingsData }, { data: roomsData }, { data: servicesData }] = await Promise.all([
+            getBookings(),
+            getRooms(),
+            getServices()
+        ]);
+        // Используем 'data' напрямую, так как handleSupabaseQuery возвращает объект { data, error }
+        setBookings(bookingsData || []);
+        setRooms(roomsData || []);
+        setServices(servicesData || []);
+    } catch (error) {
+        console.error("Failed to fetch data:", error);
+    } finally {
+        setLoading(false);
+    }
   };
   
-  const handleRowClick = (booking) => { 
-    setSelectedBooking(booking); 
-    setShowModal(true); 
+  // Открывает модальное окно для редактирования
+  const handleRowClick = (booking) => {
+    setSelectedBooking(booking);
+    setShowModal(true);
   };
   
-  const handleModalClose = () => { 
-    setShowModal(false); 
-    setSelectedBooking(null); 
-    fetchData(); 
+  // Открывает модальное окно для создания новой брони
+  const handleNewBookingClick = () => {
+    setSelectedBooking(null);
+    setShowModal(true);
   };
 
-  const filteredBookings = bookings.filter(b => 
-    (b.guests?.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) && 
+  // Закрывает модальное окно и обновляет данные
+  const handleModalClose = () => {
+    setShowModal(false);
+    setSelectedBooking(null);
+    fetchData(); // Перезагружаем данные после сохранения или закрытия
+  };
+
+  // Фильтрация бронирований по поиску и статусу
+  const filteredBookings = bookings.filter(b =>
+    (b.guests?.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) &&
     (filterStatus === 'all' || b.status === filterStatus)
   );
 
-  const calculateAccommodation = (booking) => {
-    return (booking.total_amount || 0) - (booking.services_total || 0);
-  };
+  // Вспомогательные функции для расчетов
+  const calculateAccommodation = (booking) => (booking.total_amount || 0) - (booking.services_total || 0);
 
   return (
     <div className="p-6 space-y-6">
+      {/* Карта с фильтрами и поиском */}
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input 
-                placeholder="Поиск по имени гостя..." 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
+              <Input
+                placeholder="Поиск по имени гостя..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            
-            <select 
-              value={filterStatus} 
-              onChange={(e) => setFilterStatus(e.target.value)} 
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
               className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Все статусы</option>
@@ -109,16 +121,14 @@ const handleNewBookingClick = () => {
         </CardContent>
       </Card>
       
+      {/* Карта с таблицей бронирований */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-  <CardTitle>Бронирования ({filteredBookings.length})</CardTitle>
-  <button 
-    onClick={handleNewBookingClick}
-    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-  >
-    + Новая бронь
-  </button>
-</CardHeader>
+            <CardTitle>Бронирования ({filteredBookings.length})</CardTitle>
+            <Button onClick={handleNewBookingClick}>
+                + Новая бронь
+            </Button>
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -147,20 +157,20 @@ const handleNewBookingClick = () => {
                   const toPay = (booking.total_amount || 0) - (booking.amount_paid || 0);
                   
                   return (
-                    <TableRow 
-                      key={booking.id} 
-                      onClick={() => handleRowClick(booking)} 
+                    <TableRow
+                      key={booking.id}
+                      onClick={() => handleRowClick(booking)}
                       className="cursor-pointer hover:bg-slate-50"
                     >
                       <TableCell className="font-medium">{booking.guests?.full_name}</TableCell>
-                      {/* V-- НОВАЯ ЯЧЕЙКА С ИКОНКОЙ --V */}
-    <TableCell>
-      <SourceIcon source={booking.source} />
-    </TableCell>
-    {/* A------------------------------A */}
+                      <TableCell>
+                        <SourceIcon source={booking.source} />
+                      </TableCell>
                       <TableCell>{booking.rooms?.room_number}</TableCell>
                       <TableCell>
-                        {format(parseISO(booking.check_in), 'dd.MM')} - {format(parseISO(booking.check_out), 'dd.MM.yy')}
+                        {booking.check_in && booking.check_out ? 
+                         `${format(parseISO(booking.check_in), 'dd.MM')} - ${format(parseISO(booking.check_out), 'dd.MM.yy')}`
+                         : 'N/A'}
                       </TableCell>
                       <TableCell>
                         <Badge className={statusColors[booking.status]}>
@@ -184,13 +194,13 @@ const handleNewBookingClick = () => {
         </CardContent>
       </Card>
       
+      {/* Модальное окно */}
       {showModal && (
-        <NewBookingModal 
-          bookingToEdit={selectedBooking} 
-          allBookings={bookings}
-          rooms={rooms} 
-          services={services} 
-          onClose={handleModalClose} 
+        <NewBookingModal
+          bookingToEdit={selectedBooking}
+          rooms={rooms}
+          services={services}
+          onClose={handleModalClose}
           onBookingSaved={handleModalClose}
         />
       )}
