@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase'; // Убедись, что твой клиент Supabase импортируется отсюда
+import { supabase } from '@/lib/supabase'; // Убедитесь, что путь к вашему клиенту верный
 
-// Контекст для доступа к данным аутентификации в любом компоненте
 const AuthContext = createContext();
 
-// Хук для удобного использования контекста
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -13,12 +11,10 @@ export const useAuth = () => {
   return context;
 };
 
-// Компонент-провайдер, который будет "оборачивать" всё приложение
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Этот useEffect - сердце нашей аутентификации
   useEffect(() => {
     // 1. Проверяем текущую сессию при первой загрузке
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,8 +22,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    // 2. Создаём "слушателя", который будет в реальном времени следить за изменениями
-    //    (когда пользователь вошёл, вышел и т.д.)
+    // 2. Создаём "слушателя" для отслеживания изменений статуса аутентификации
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
@@ -35,31 +30,49 @@ export const AuthProvider = ({ children }) => {
       }
     );
 
-    // 3. Отключаем "слушателя", когда компонент больше не нужен
+    // 3. Отключаем "слушателя" при размонтировании компонента
     return () => {
       authListener?.subscription.unsubscribe();
     };
   }, []);
 
+  // --- НАШИ ФУНКЦИИ АУТЕНТИФИКАЦИИ ---
+
   // Функция для входа через провайдера (например, Google)
-  const signInWithProvider = (provider) => {
-    supabase.auth.signInWithOAuth({ provider });
+  const signInWithProvider = async (provider) => {
+    const { error } = await supabase.auth.signInWithOAuth({ provider });
+    if (error) throw error;
+  };
+
+  // V-- ДОБАВЛЕНО: Функция для входа по email и паролю --V
+  const signInWithEmail = async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  };
+
+  // V-- ДОБАВЛЕНО: Функция для регистрации по email и паролю --V
+  const signUpWithEmail = async (email, password) => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+    return data; // Возвращаем данные, чтобы показать сообщение о подтверждении
   };
   
   // Функция для выхода
-  const signOut = () => {
-    supabase.auth.signOut();
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
-  // Объект со всеми данными и функциями, которые мы передаём "вниз" по дереву компонентов
+  // Объект со всеми данными и функциями, которые мы передаём в приложение
   const value = {
     user,
     loading,
     signInWithProvider,
+    signInWithEmail,  // <-- Добавлено
+    signUpWithEmail,  // <-- Добавлено
     signOut,
   };
 
-  // Если не идёт загрузка, показываем дочерние компоненты (всё твоё приложение)
   return (
     <AuthContext.Provider value={value}>
       {!loading && children}
