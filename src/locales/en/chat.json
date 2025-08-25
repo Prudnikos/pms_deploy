@@ -1,0 +1,39 @@
+{
+  "title": "Messages",
+  "header": "Chats",
+  
+  "search": {
+    "placeholder": "Search messages..."
+  },
+  
+  "conversation": {
+    "selectChat": "Select a chat",
+    "selectChatDescription": "Choose a chat from the list to view the conversation",
+    "noMessages": "No messages yet",
+    "typeMessage": "Type a message...",
+    "send": "Send",
+    "unknownContact": "Unknown contact"
+  },
+  
+  "status": {
+    "online": "Online",
+    "offline": "Offline",
+    "typing": "typing...",
+    "delivered": "Delivered",
+    "read": "Read",
+    "sent": "Sent"
+  },
+  
+  "channels": {
+    "whatsapp": "WhatsApp",
+    "telegram": "Telegram",
+    "email": "Email",
+    "avito": "Avito"
+  },
+  
+  "errors": {
+    "loadingChats": "Error loading chats",
+    "sendingMessage": "Error sending message",
+    "loadingMessages": "Error loading messages"
+  }
+};

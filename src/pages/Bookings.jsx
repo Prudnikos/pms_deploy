@@ -5,27 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { enUS, ru } from 'date-fns/locale';
 import NewBookingModal from '../components/dashboard/NewBookingModal';
-import SourceIcon from '@/components/SourceIcon'; // Укажите правильный путь к вашему компоненту
-
-const statusColors = { 
-  'confirmed': 'bg-green-100 text-green-800', 
-  'pending': 'bg-yellow-100 text-yellow-800', 
-  'cancelled': 'bg-red-100 text-red-800', 
-  'checked_in': 'bg-purple-100 text-purple-800', 
-  'checked_out': 'bg-blue-100 text-blue-800' 
-};
-
-const statusLabels = { 
-  'confirmed': 'Подтверждено', 
-  'pending': 'Не подтверждено', 
-  'cancelled': 'Отменено',
-  'checked_in': 'Проживание', 
-  'checked_out': 'Выезд' 
-};
+import SourceIcon from '@/components/SourceIcon';
+import { useTranslation } from '@/hooks/useTranslation';
+import { Button } from '@/components/ui/button';
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState([]);
@@ -36,16 +22,27 @@ export default function BookingsPage() {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [services, setServices] = useState([]);
+  
+  const { t, currentLanguage, formatCurrency } = useTranslation('bookings');
+  const dateLocale = currentLanguage === 'ru' ? ru : enUS;
+
+  // Status colors remain the same
+  const statusColors = { 
+    'confirmed': 'bg-green-100 text-green-800', 
+    'pending': 'bg-yellow-100 text-yellow-800', 
+    'cancelled': 'bg-red-100 text-red-800', 
+    'checked_in': 'bg-purple-100 text-purple-800', 
+    'checked_out': 'bg-blue-100 text-blue-800' 
+  };
 
   useEffect(() => { 
     fetchData(); 
   }, []);
-// ... внутри компонента BookingsPage, перед return
-const handleNewBookingClick = () => {
-  setSelectedBooking(null); // Убедимся, что нет выбранной брони для редактирования
-  setShowModal(true);
-};
 
+  const handleNewBookingClick = () => {
+    setSelectedBooking(null);
+    setShowModal(true);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -88,7 +85,7 @@ const handleNewBookingClick = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input 
-                placeholder="Поиск по имени гостя..." 
+                placeholder={t('search.placeholder')}
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
                 className="pl-10"
@@ -100,9 +97,11 @@ const handleNewBookingClick = () => {
               onChange={(e) => setFilterStatus(e.target.value)} 
               className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="all">Все статусы</option>
-              {Object.entries(statusLabels).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
+              <option value="all">{t('filter.allStatuses')}</option>
+              {Object.entries(['confirmed', 'pending', 'cancelled', 'checked_in', 'checked_out']).map(([_, status]) => (
+                <option key={status} value={status}>
+                  {t(`status.${status}`)}
+                </option>
               ))}
             </select>
           </div>
@@ -111,40 +110,52 @@ const handleNewBookingClick = () => {
       
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-  <CardTitle>Бронирования ({filteredBookings.length})</CardTitle>
-  <button 
-    onClick={handleNewBookingClick}
-    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-  >
-    + Новая бронь
-  </button>
-</CardHeader>
+          <CardTitle>
+            {t('title')} ({filteredBookings.length})
+          </CardTitle>
+          <Button 
+            onClick={handleNewBookingClick}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t('actions.newBooking')}
+          </Button>
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Гость</TableHead>
-                <TableHead>Источник</TableHead>
-                <TableHead>Номер</TableHead>
-                <TableHead>Даты</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Проживание</TableHead>
-                <TableHead>Услуги</TableHead>
-                <TableHead>Оплата</TableHead>
-                <TableHead>К Оплате</TableHead>
+                <TableHead>{t('table.guest')}</TableHead>
+                <TableHead>{t('table.source')}</TableHead>
+                <TableHead>{t('table.room')}</TableHead>
+                <TableHead>{t('table.dates')}</TableHead>
+                <TableHead>{t('table.status')}</TableHead>
+                <TableHead>{t('table.accommodation')}</TableHead>
+                <TableHead>{t('table.services')}</TableHead>
+                <TableHead>{t('table.paid')}</TableHead>
+                <TableHead>{t('table.balance')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan="9"><Skeleton className="h-8 w-full" /></TableCell>
+                    <TableCell colSpan="9">
+                      <Skeleton className="h-8 w-full" />
+                    </TableCell>
                   </TableRow>
                 ))
+              ) : filteredBookings.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan="9" className="text-center text-slate-500 py-8">
+                    {t('table.noResults')}
+                  </TableCell>
+                </TableRow>
               ) : (
                 filteredBookings.map((booking) => {
                   const accommodation = calculateAccommodation(booking);
                   const toPay = (booking.total_amount || 0) - (booking.amount_paid || 0);
+                  const currency = currentLanguage === 'ru' ? 'RUB' : 'USD';
                   
                   return (
                     <TableRow 
@@ -152,28 +163,33 @@ const handleNewBookingClick = () => {
                       onClick={() => handleRowClick(booking)} 
                       className="cursor-pointer hover:bg-slate-50"
                     >
-                      <TableCell className="font-medium">{booking.guests?.full_name}</TableCell>
-                      {/* V-- НОВАЯ ЯЧЕЙКА С ИКОНКОЙ --V */}
-    <TableCell>
-      <SourceIcon source={booking.source} />
-    </TableCell>
-    {/* A------------------------------A */}
+                      <TableCell className="font-medium">
+                        {booking.guests?.full_name || t('table.unknownGuest')}
+                      </TableCell>
+                      <TableCell>
+                        <SourceIcon source={booking.source} />
+                      </TableCell>
                       <TableCell>{booking.rooms?.room_number}</TableCell>
                       <TableCell>
-                        {format(parseISO(booking.check_in), 'dd.MM')} - {format(parseISO(booking.check_out), 'dd.MM.yy')}
+                        {format(parseISO(booking.check_in), 'dd.MM', { locale: dateLocale })} - 
+                        {format(parseISO(booking.check_out), 'dd.MM.yy', { locale: dateLocale })}
                       </TableCell>
                       <TableCell>
                         <Badge className={statusColors[booking.status]}>
-                          {statusLabels[booking.status]}
+                          {t(`status.${booking.status}`)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{accommodation.toLocaleString()} ₽</TableCell>
-                      <TableCell>{(booking.services_total || 0).toLocaleString()} ₽</TableCell>
+                      <TableCell>
+                        {formatCurrency(accommodation, currency)}
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(booking.services_total || 0, currency)}
+                      </TableCell>
                       <TableCell className="text-green-600">
-                        {(booking.amount_paid || 0).toLocaleString()} ₽
+                        {formatCurrency(booking.amount_paid || 0, currency)}
                       </TableCell>
                       <TableCell className={`font-bold ${toPay > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {toPay.toLocaleString()} ₽
+                        {formatCurrency(toPay, currency)}
                       </TableCell>
                     </TableRow>
                   );

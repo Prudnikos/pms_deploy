@@ -46,26 +46,18 @@ const MessageStatusIcon = ({ status }) => {
 const ChannelIcon = ({ channel }) => {
     const channelKey = typeof channel === 'string' ? channel.toLowerCase() : '';
     const iconMap = {
-        whatsapp: <img src="/icons/whatsapp.png" alt="WhatsApp" className="h-6 w-6" />,
-        telegram: <img src="/icons/telegram.png" alt="Telegram" className="h-6 w-6" />,
-        avito: <img src="/icons/avito.png" alt="Avito" className="h-6 w-6" />,
-        email: <img src="/icons/email.png" alt="Email" className="h-6 w-6" />,
-        guestapp: <img src="/icons/guestapp.png" alt="GuestApp" className="h-6 w-6" />,
-        appstaff: <img src="/icons/appstaff.png" alt="Appstaff" className="h-6 w-6" />,
-        site: <img src="/icons/site.png" alt="Site" className="h-6 w-6" />,
-        instagram: <img src="/icons/instagram.png" alt="Instagram" className="h-6 w-6" />,
-        instagram: <img src="/icons/instagram.png" alt="Instagram" className="h-6 w-6" />,
-        facebook: <img src="/icons/facebook.png" alt="Facebook" className="h-6 w-6" />,
-        booking: <img src="/icons/booking2.png" alt="Booking" className="h-6 w-6" />,
-        
+        whatsapp: <img src="/icons/whatsapp.png" alt="WhatsApp" className="h-4 w-4" />,
+        telegram: <img src="/icons/telegram.png" alt="Telegram" className="h-4 w-4" />,
+        avito: <img src="/icons/avito.png" alt="Avito" className="h-4 w-4" />,
+        email: <img src="/icons/email.png" alt="Email" className="h-4 w-4" />,
     };
     
     if (!iconMap[channelKey]) return null;
     
     return (
-        <div className="absolute -bottom-1 -right-1 flex items-center justify-center">
-          {iconMap[channelKey]}
-      </div>
+        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-lg border-2 border-white flex items-center justify-center transform transition-transform hover:scale-110">
+            {iconMap[channelKey]}
+        </div>
     );
 };
 
@@ -128,12 +120,6 @@ const getInitials = (conversation) => {
         if (conversation.channel === 'telegram') return 'TG';
         if (conversation.channel === 'avito') return 'AV';
         if (conversation.channel === 'email') return '@';
-        if (conversation.channel === 'guestapp') return '@';
-        if (conversation.channel === 'appstaff') return '@';
-        if (conversation.channel === 'site') return '@';
-        if (conversation.channel === 'instagram') return '@';
-        if (conversation.channel === 'facebook') return '@';
-        if (conversation.channel === 'booking') return '@';
         return '??';
     }
     
@@ -580,7 +566,7 @@ export default function ChatSidebar({ onConversationSelect, selectedConversation
                         <div className="mr-3 p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/20">
                             <MessageCircle className="h-5 w-5 text-white" />
                         </div>
-                        Messages
+                        Сообщения
                     </h2>
                     <div className="flex items-center gap-2">
                         {/* ВРЕМЕННАЯ кнопка для тестирования */}
@@ -625,7 +611,7 @@ export default function ChatSidebar({ onConversationSelect, selectedConversation
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                         <Input 
-                            placeholder="search messages..." 
+                            placeholder="Поиск по сообщениям..." 
                             value={searchTerm} 
                             onChange={(e) => setSearchTerm(e.target.value)} 
                             className="pl-10 pr-4 py-2.5 bg-white/90 backdrop-blur-sm border-slate-200/50 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all"

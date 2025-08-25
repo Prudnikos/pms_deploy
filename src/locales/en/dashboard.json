@@ -1,0 +1,27 @@
+{
+  "title": "Booking Calendar",
+  "subtitle": "Manage your reservations",
+  
+  "navigation": {
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "today": "Today"
+  },
+  
+  "actions": {
+    "newReservation": "New reservation",
+    "signOut": "Sign out"
+  },
+  
+  "grid": {
+    "rooms": "Rooms",
+    "loading": "Loading calendar...",
+    "noData": "No rooms available",
+    "dragToSelect": "Drag to select dates"
+  },
+  
+  "errors": {
+    "loadingBookings": "Error loading bookings: {{error}}",
+    "loadingData": "Error loading data: {{error}}"
+  }
+};

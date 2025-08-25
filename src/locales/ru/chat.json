@@ -1,0 +1,39 @@
+{
+  "title": "Сообщения",
+  "header": "Чаты",
+  
+  "search": {
+    "placeholder": "Поиск по сообщениям..."
+  },
+  
+  "conversation": {
+    "selectChat": "Выберите диалог",
+    "selectChatDescription": "Выберите чат из списка слева, чтобы начать общение",
+    "noMessages": "Сообщений пока нет",
+    "typeMessage": "Введите сообщение...",
+    "send": "Отправить",
+    "unknownContact": "Неизвестный контакт"
+  },
+  
+  "status": {
+    "online": "В сети",
+    "offline": "Не в сети",
+    "typing": "печатает...",
+    "delivered": "Доставлено",
+    "read": "Прочитано",
+    "sent": "Отправлено"
+  },
+  
+  "channels": {
+    "whatsapp": "WhatsApp",
+    "telegram": "Telegram",
+    "email": "Email",
+    "avito": "Avito"
+  },
+  
+  "errors": {
+    "loadingChats": "Ошибка загрузки чатов",
+    "sendingMessage": "Ошибка отправки сообщения",
+    "loadingMessages": "Ошибка загрузки сообщений"
+  }
+};

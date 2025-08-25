@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-route
 import { AuthProvider, useAuth } from '@/components/auth/AuthProvider';
 import LoginForm from '@/components/auth/LoginForm'; // Импортируем нашу форму входа
 import Layout from "./Layout.jsx";
+import ChannexIntegration from "./ChannexIntegration";
 
 // Импорты твоих страниц
 import Dashboard from "./Dashboard";
@@ -13,6 +14,13 @@ import Unpaid from "./Unpaid";
 import Chat from "./Chat";
 import Integrations from "./Integrations";
 
+// Импорты новых страниц для статистики
+import Arrivals from "./Arrivals";
+import Departures from "./Departures";
+import Stays from "./Stays";
+import Birthdays from "./Birthdays";
+import Tasks from "./Tasks";
+
 const PAGES = {
     Dashboard: Dashboard,
     Bookings: Bookings,
@@ -21,6 +29,13 @@ const PAGES = {
     Unpaid: Unpaid,
     Chat: Chat,
     Integrations: Integrations,
+    ChannexIntegration: ChannexIntegration,
+    // Новые страницы статистики
+    Arrivals: Arrivals,
+    Departures: Departures,
+    Stays: Stays,
+    Birthdays: Birthdays,
+    Tasks: Tasks
 }
 
 function _getCurrentPage(url) {
@@ -67,6 +82,14 @@ function AppRoutes() {
                 <Route path="/Unpaid" element={<Unpaid />} />
                 <Route path="/Chat" element={<Chat />} />
                 <Route path="/Integrations" element={<Integrations />} />
+                <Route path="/ChannexIntegration" element={<ChannexIntegration />} />
+                
+                {/* Новые роуты для страниц статистики */}
+                <Route path="/Arrivals" element={<Arrivals />} />
+                <Route path="/Departures" element={<Departures />} />
+                <Route path="/Stays" element={<Stays />} />
+                <Route path="/Birthdays" element={<Birthdays />} />
+                <Route path="/Tasks" element={<Tasks />} />
             </Routes>
         </Layout>
     );

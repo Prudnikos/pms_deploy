@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'; // Импортируем наш настоящий клиент Supabase
 import { format } from 'date-fns';
+
 // --- ОБРАБОТЧИК ЗАПРОСОВ ---
 // Обертка для обработки ошибок и возврата данных в едином формате
 const handleSupabaseQuery = async (query) => {
@@ -13,20 +14,9 @@ const handleSupabaseQuery = async (query) => {
     return { data: null, error };
   }
 };
-// Вставьте этот код в Supabase.jsx
 
-// Обновление данных гостя
-export const updateGuest = async (id, updates) => {
-  return handleSupabaseQuery(
-    supabase
-      .from('guests')
-      .update(updates)
-      .eq('id', id)
-  );
-};
 // --- ОСНОВНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С ДАННЫМИ ---
 
-// Получение бронирований
 // Получение бронирований
 export const getBookings = async () => {
   return handleSupabaseQuery(
@@ -40,17 +30,44 @@ export const getBookings = async () => {
       `)
   );
 };
-// Вставьте этот код в Supabase.jsx
 
-// Удаление бронирования
-export const deleteBooking = async (id) => {
+// Получение бронирований для конкретного диапазона дат
+export const getBookingsForRange = async (startDate, endDate) => {
+  // Форматируем даты в строку YYYY-MM-DD для запроса
+  const start = format(startDate, 'yyyy-MM-dd');
+  const end = format(endDate, 'yyyy-MM-dd');
+
   return handleSupabaseQuery(
     supabase
       .from('bookings')
-      .delete()
-      .eq('id', id)
+      .select(`
+        *,
+        guests ( * ),
+        rooms ( id, room_number, room_type ),
+        booking_services ( *, services ( * ) )
+      `)
+      // Логика для получения всех броней, которые ПЕРЕСЕКАЮТСЯ с диапазоном
+      .lt('check_in', end)   // Дата заезда должна быть ДО конца диапазона
+      .gt('check_out', start) // Дата выезда должна быть ПОСЛЕ начала диапазона
   );
 };
+
+// Получение полной информации о бронировании (для обновления данных после изменения услуг)
+export const getBookingById = async (bookingId) => {
+  return handleSupabaseQuery(
+    supabase
+      .from('bookings')
+      .select(`
+        *,
+        guests ( * ),
+        rooms ( id, room_number, room_type ),
+        booking_services ( *, services ( * ) )
+      `)
+      .eq('id', bookingId)
+      .single()
+  );
+};
+
 // Получение комнат
 export const getRooms = async () => {
   return handleSupabaseQuery(
@@ -79,7 +96,7 @@ export const getGuests = async () => {
   );
 };
 
-// --- ФУНКЦИИ ДЛЯ СОЗДАНИЯ И ОБНОВЛЕНИЯ (недостающие) ---
+// --- ФУНКЦИИ ДЛЯ СОЗДАНИЯ И ОБНОВЛЕНИЯ ---
 
 // Создание нового бронирования
 export const createBooking = async (bookingData) => {
@@ -105,8 +122,6 @@ export const createBooking = async (bookingData) => {
   return data;
 };
 
-// ... остальные ваши функции (getBookings, updateBooking и т.д.)
-
 // Обновление существующего бронирования
 export const updateBooking = async (id, updates) => {
   return handleSupabaseQuery(
@@ -118,47 +133,218 @@ export const updateBooking = async (id, updates) => {
   );
 };
 
-// Добавление услуг к бронированию
-export const addServicesToBooking = async (bookingId, servicesCart) => {
-  const { error } = await supabase.rpc('add_services_to_booking', {
-    booking_id_arg: bookingId,
-    services_data: servicesCart
-  });
-
-  if (error) {
-    console.error('Ошибка при добавлении услуг:', error);
-    throw error;
-  }
-  return true;
+// Обновление данных гостя
+export const updateGuest = async (id, updates) => {
+  return handleSupabaseQuery(
+    supabase
+      .from('guests')
+      .update(updates)
+      .eq('id', id)
+  );
 };
-// Вставьте этот код в Supabase.jsx
 
-// Получение бронирований для конкретного диапазона дат
-export const getBookingsForRange = async (startDate, endDate) => {
-  // Форматируем даты в строку YYYY-MM-DD для запроса
-  const start = format(startDate, 'yyyy-MM-dd');
-  const end = format(endDate, 'yyyy-MM-dd');
-
+// Удаление бронирования
+export const deleteBooking = async (id) => {
   return handleSupabaseQuery(
     supabase
       .from('bookings')
-      .select(`
-        *,
-        guests ( * ),
-        rooms ( id, room_number, room_type ),
-        booking_services ( *, services ( * ) )
-      `)
-      // Логика для получения всех броней, которые ПЕРЕСЕКАЮТСЯ с диапазоном
-      .lt('check_in', end)   // Дата заезда должна быть ДО конца диапазона
-      .gt('check_out', start) // Дата выезда должна быть ПОСЛЕ начала диапазона
+      .delete()
+      .eq('id', id)
   );
 };
+
+// --- ФУНКЦИИ ДЛЯ РАБОТЫ С УСЛУГАМИ ---
+
+// Добавление услуг к бронированию (с fallback логикой)
+export const addServicesToBooking = async (bookingId, servicesCart) => {
+  try {
+    console.log('🔄 Supabase: Adding services to booking', { bookingId, servicesCart });
+    
+    // Попробуем сначала через RPC
+    const { data, error } = await supabase.rpc('add_services_to_booking', {
+      booking_id_arg: bookingId,
+      services_data: servicesCart
+    });
+
+    if (error) {
+      console.warn('⚠️ RPC failed, trying direct insert:', error.message);
+      
+      // Если RPC не сработала, используем прямую вставку
+      const servicesToInsert = servicesCart.map(service => ({
+        booking_id: bookingId,
+        service_id: service.service_id,
+        quantity: service.quantity,
+        price_at_booking: service.price_at_booking
+      }));
+      
+      const { data: insertData, error: insertError } = await supabase
+        .from('booking_services')
+        .insert(servicesToInsert)
+        .select();
+        
+      if (insertError) {
+        console.error('❌ Direct insert also failed:', insertError);
+        throw insertError;
+      }
+      
+      console.log('✅ Supabase: Services added via direct insert', insertData);
+      return { data: insertData, error: null };
+    }
+    
+    console.log('✅ Supabase: Services added via RPC successfully', data);
+    return { data, error: null };
+    
+  } catch (error) {
+    console.error('❌ Error in addServicesToBooking:', error);
+    return { data: null, error };
+  }
+};
+
 // Удаление услуги из бронирования
 export const removeServiceFromBooking = async (bookingServiceId) => {
-  return handleSupabaseQuery(
-    supabase
-      .from('booking_services')
-      .delete()
-      .eq('id', bookingServiceId)
-  );
+  try {
+    console.log('🔄 Supabase: Removing service from booking', bookingServiceId);
+    
+    const result = await handleSupabaseQuery(
+      supabase
+        .from('booking_services')
+        .delete()
+        .eq('id', bookingServiceId)
+    );
+    
+    console.log('✅ Supabase: Service removed successfully');
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Error in removeServiceFromBooking:', error);
+    return { data: null, error };
+  }
+};
+
+// --- ФУНКЦИИ ДЛЯ РАБОТЫ С ОТЧЕТАМИ ---
+
+// Создание или обновление ежедневного отчета
+export const saveDailyReport = async (reportDate, reportData) => {
+  try {
+    console.log('🔄 Supabase: Saving daily report', { reportDate, reportData });
+    
+    // Проверяем, существует ли отчет за эту дату
+    const { data: existingReport, error: checkError } = await supabase
+      .from('daily_reports')
+      .select('*')
+      .eq('report_date', reportDate)
+      .single();
+    
+    const reportPayload = {
+      report_date: reportDate,
+      income_data: reportData.manual.income,
+      expenses_data: reportData.manual.expenses,
+      auto_data: reportData.auto,
+      updated_at: new Date().toISOString()
+    };
+    
+    if (existingReport && !checkError) {
+      // Обновляем существующий отчет
+      const { data, error } = await supabase
+        .from('daily_reports')
+        .update(reportPayload)
+        .eq('id', existingReport.id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      // Сохраняем историю изменений
+      await saveReportHistory(existingReport.id, existingReport, reportPayload, 'update');
+      
+      console.log('✅ Daily report updated successfully');
+      return { data, error: null };
+    } else {
+      // Создаем новый отчет
+      reportPayload.created_at = new Date().toISOString();
+      
+      const { data, error } = await supabase
+        .from('daily_reports')
+        .insert(reportPayload)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      // Сохраняем историю создания
+      await saveReportHistory(data.id, null, reportPayload, 'create');
+      
+      console.log('✅ Daily report created successfully');
+      return { data, error: null };
+    }
+    
+  } catch (error) {
+    console.error('❌ Error saving daily report:', error);
+    return { data: null, error };
+  }
+};
+
+// Получение ежедневного отчета
+export const getDailyReport = async (reportDate) => {
+  try {
+    const { data, error } = await supabase
+      .from('daily_reports')
+      .select('*')
+      .eq('report_date', reportDate)
+      .single();
+      
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      throw error;
+    }
+    
+    return { data: data || null, error: null };
+    
+  } catch (error) {
+    console.error('❌ Error getting daily report:', error);
+    return { data: null, error };
+  }
+};
+
+// Сохранение истории изменений отчета
+const saveReportHistory = async (reportId, oldData, newData, action) => {
+  try {
+    const historyRecord = {
+      report_id: reportId,
+      action: action, // 'create', 'update', 'delete'
+      old_data: oldData,
+      new_data: newData,
+      changed_at: new Date().toISOString(),
+      // TODO: добавить user_id когда будет система пользователей
+    };
+    
+    const { error } = await supabase
+      .from('daily_reports_history')
+      .insert(historyRecord);
+      
+    if (error) throw error;
+    
+    console.log('✅ Report history saved');
+    
+  } catch (error) {
+    console.error('❌ Error saving report history:', error);
+  }
+};
+
+// Получение истории изменений отчета
+export const getReportHistory = async (reportId) => {
+  try {
+    const { data, error } = await supabase
+      .from('daily_reports_history')
+      .select('*')
+      .eq('report_id', reportId)
+      .order('changed_at', { ascending: false });
+      
+    if (error) throw error;
+    
+    return { data: data || [], error: null };
+    
+  } catch (error) {
+    console.error('❌ Error getting report history:', error);
+    return { data: [], error };
+  }
 };

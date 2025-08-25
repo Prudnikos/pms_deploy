@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { format, parseISO, differenceInDays } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { enUS, ru } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, User, MessageCircle, CreditCard, Package, Clock, AlertTriangle } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const statusGradients = {
   'confirmed': 'from-emerald-400 to-green-500',
@@ -11,14 +12,6 @@ const statusGradients = {
   'cancelled': 'from-rose-400 to-red-500',
   'checked_in': 'from-violet-400 to-purple-500',
   'checked_out': 'from-sky-400 to-blue-500'
-};
-
-const statusLabels = {
-  'confirmed': 'Подтверждено',
-  'pending': 'Ожидает',
-  'cancelled': 'Отменено',
-  'checked_in': 'Проживает',
-  'checked_out': 'Выехал'
 };
 
 const statusIcons = {
@@ -30,22 +23,87 @@ const statusIcons = {
 };
 
 export default function BookingPopover({ booking, position, onClose }) {
+  const { t, currentLanguage, formatCurrency } = useTranslation('booking');
+  const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0, showBelow: false });
+  
   if (!booking) return null;
 
+  const dateLocale = currentLanguage === 'ru' ? ru : enUS;
+  const currency = currentLanguage === 'ru' ? 'RUB' : 'USD';
+  
   const accommodationTotal = booking.total_amount - (booking.services_total || 0);
   const unpaidAmount = booking.total_amount - (booking.amount_paid || 0);
   const duration = differenceInDays(parseISO(booking.check_out), parseISO(booking.check_in));
+
+  // Вычисляем оптимальную позицию попапа
+  useEffect(() => {
+    const popoverHeight = 400; // Примерная высота попапа
+    const popoverWidth = 350;
+    const margin = 20;
+
+    let x = position.x + 10;
+    let y = position.y;
+    let showBelow = false;
+
+    // Проверяем, помещается ли попап справа
+    if (x + popoverWidth > window.innerWidth - margin) {
+      x = position.x - popoverWidth - 10;
+    }
+
+    // Проверяем, помещается ли попап сверху (обычное положение)
+    if (y - popoverHeight < margin) {
+      // Если не помещается сверху, показываем снизу
+      showBelow = true;
+      y = position.y + 10;
+    } else {
+      // Если помещается сверху, сдвигаем вверх
+      y = position.y - popoverHeight - 10;
+    }
+
+    // Проверяем, что попап не выходит за нижний край экрана
+    if (showBelow && y + popoverHeight > window.innerHeight - margin) {
+      y = window.innerHeight - popoverHeight - margin;
+    }
+
+    // Убеждаемся, что попап не выходит за левый край
+    if (x < margin) {
+      x = margin;
+    }
+
+    setPopoverPosition({ x, y, showBelow });
+  }, [position]);
+
+  // Функция для правильного склонения дней
+  const getDaysText = (days) => {
+    if (currentLanguage === 'en') {
+      return `${days} ${days === 1 ? 'day' : 'days'}`;
+    }
+    // Русское склонение
+    if (days === 1) return '1 день';
+    if (days >= 2 && days <= 4) return `${days} дня`;
+    return `${days} дней`;
+  };
+
+  // Функция для правильного склонения гостей
+  const getGuestsText = (count) => {
+    if (currentLanguage === 'en') {
+      return `${count} ${count === 1 ? 'guest' : 'guests'}`;
+    }
+    // Русское склонение
+    if (count === 1) return '1 гость';
+    if (count >= 2 && count <= 4) return `${count} гостя`;
+    return `${count} гостей`;
+  };
 
   return (
     <div 
       className="fixed z-50 pointer-events-none" 
       style={{ 
-        left: Math.min(position.x + 10, window.innerWidth - 350), 
-        top: position.y - 10, 
-        transform: 'translateY(-100%)' 
+        left: `${popoverPosition.x}px`, 
+        top: `${popoverPosition.y}px`
       }}
     >
-      <Card className="w-80 shadow-2xl border-0 bg-white/95 backdrop-blur-xl overflow-hidden">
+      <Card className="w-80 shadow-2xl border-0 bg-white/95 backdrop-blur-xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200">
         {/* Градиентный хедер */}
         <div className={`h-1 bg-gradient-to-r ${statusGradients[booking.status]}`} />
         
@@ -54,7 +112,7 @@ export default function BookingPopover({ booking, position, onClose }) {
             <div className="flex-1">
               <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <User className="h-4 w-4 text-blue-600" />
-                {booking.guests?.full_name || 'Гость'}
+                {booking.guests?.full_name || t('popover.unknownGuest')}
               </CardTitle>
             </div>
             <div className={`
@@ -63,7 +121,7 @@ export default function BookingPopover({ booking, position, onClose }) {
               flex items-center gap-1
             `}>
               <span>{statusIcons[booking.status]}</span>
-              <span>{statusLabels[booking.status]}</span>
+              <span>{t(`status.${booking.status}`)}</span>
             </div>
           </div>
         </CardHeader>
@@ -76,15 +134,16 @@ export default function BookingPopover({ booking, position, onClose }) {
                 <Calendar className="h-3.5 w-3.5 text-white" />
               </div>
               <div>
-                <p className="text-xs text-slate-500">Период проживания</p>
+                <p className="text-xs text-slate-500">{t('popover.stayPeriod')}</p>
                 <p className="text-sm font-semibold text-slate-800">
-                  {format(parseISO(booking.check_in), 'dd MMM', { locale: ru })} — {format(parseISO(booking.check_out), 'dd MMM', { locale: ru })}
+                  {format(parseISO(booking.check_in), 'dd MMM', { locale: dateLocale })} — 
+                  {format(parseISO(booking.check_out), 'dd MMM', { locale: dateLocale })}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs text-slate-500">Длительность</p>
-              <p className="text-sm font-bold text-blue-600">{duration} {duration === 1 ? 'день' : duration < 5 ? 'дня' : 'дней'}</p>
+              <p className="text-xs text-slate-500">{t('popover.duration')}</p>
+              <p className="text-sm font-bold text-blue-600">{getDaysText(duration)}</p>
             </div>
           </div>
           
@@ -94,9 +153,9 @@ export default function BookingPopover({ booking, position, onClose }) {
               <User className="h-3.5 w-3.5 text-white" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-slate-500">Количество гостей</p>
+              <p className="text-xs text-slate-500">{t('popover.guestCount')}</p>
               <p className="text-sm font-semibold text-slate-800">
-                {booking.guests_count || 1} {booking.guests_count === 1 ? 'гость' : 'гостей'}
+                {getGuestsText(booking.guests_count || booking.guest_count || booking.guests?.guests_count || booking.guests?.guest_count || 1)}
               </p>
             </div>
           </div>
@@ -107,7 +166,7 @@ export default function BookingPopover({ booking, position, onClose }) {
               <div className="flex items-start gap-2">
                 <MessageCircle className="h-4 w-4 text-orange-600 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-xs font-medium text-orange-700 mb-1">Комментарий</p>
+                  <p className="text-xs font-medium text-orange-700 mb-1">{t('popover.comment')}</p>
                   <p className="text-sm text-slate-600">{booking.notes}</p>
                 </div>
               </div>
@@ -119,7 +178,7 @@ export default function BookingPopover({ booking, position, onClose }) {
             <div className="space-y-2">
               <div className="flex items-center gap-2 px-3">
                 <Package className="h-4 w-4 text-purple-600" />
-                <p className="text-sm font-semibold text-slate-700">Дополнительные услуги</p>
+                <p className="text-sm font-semibold text-slate-700">{t('popover.additionalServices')}</p>
               </div>
               <div className="space-y-1 px-3">
                 {booking.booking_services.map((bs) => (
@@ -129,7 +188,7 @@ export default function BookingPopover({ booking, position, onClose }) {
                       <span className="text-xs text-slate-400 ml-1">×{bs.quantity}</span>
                     </span>
                     <span className="text-sm font-medium text-slate-800">
-                      {(bs.price_at_booking * bs.quantity).toLocaleString()} ₽
+                      {formatCurrency(bs.price_at_booking * bs.quantity, currency)}
                     </span>
                   </div>
                 ))}
@@ -141,18 +200,18 @@ export default function BookingPopover({ booking, position, onClose }) {
           <div className="border-t border-slate-200/50 pt-3 mt-3 space-y-2">
             <div className="space-y-1.5 px-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-600">Проживание</span> 
-                <span className="text-sm font-medium">{accommodationTotal.toLocaleString()} ₽</span>
+                <span className="text-sm text-slate-600">{t('popover.accommodation')}</span> 
+                <span className="text-sm font-medium">{formatCurrency(accommodationTotal, currency)}</span>
               </div>
               {booking.services_total > 0 && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">Услуги</span> 
-                  <span className="text-sm font-medium">{(booking.services_total || 0).toLocaleString()} ₽</span>
+                  <span className="text-sm text-slate-600">{t('popover.services')}</span> 
+                  <span className="text-sm font-medium">{formatCurrency(booking.services_total || 0, currency)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center pt-1 border-t border-slate-200/50">
-                <span className="text-sm font-semibold text-slate-700">Итого</span> 
-                <span className="text-sm font-bold text-slate-800">{booking.total_amount.toLocaleString()} ₽</span>
+                <span className="text-sm font-semibold text-slate-700">{t('popover.total')}</span> 
+                <span className="text-sm font-bold text-slate-800">{formatCurrency(booking.total_amount, currency)}</span>
               </div>
             </div>
             
@@ -169,26 +228,26 @@ export default function BookingPopover({ booking, position, onClose }) {
                   {unpaidAmount > 0 ? (
                     <>
                       <AlertTriangle className="h-4 w-4 text-orange-600" />
-                      <span className="text-sm font-medium text-orange-700">К оплате</span>
+                      <span className="text-sm font-medium text-orange-700">{t('popover.toPay')}</span>
                     </>
                   ) : (
                     <>
                       <CreditCard className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-700">Оплачено полностью</span>
+                      <span className="text-sm font-medium text-green-700">{t('popover.paidFully')}</span>
                     </>
                   )}
                 </div>
                 <span className={`text-lg font-bold ${unpaidAmount > 0 ? 'text-orange-700' : 'text-green-700'}`}>
-                  {unpaidAmount > 0 ? `${unpaidAmount.toLocaleString()} ₽` : '✓'}
+                  {unpaidAmount > 0 ? formatCurrency(unpaidAmount, currency) : '✓'}
                 </span>
               </div>
               
               {booking.amount_paid > 0 && unpaidAmount > 0 && (
                 <div className="mt-2 pt-2 border-t border-orange-200">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-600">Уже оплачено</span>
+                    <span className="text-xs text-slate-600">{t('popover.alreadyPaid')}</span>
                     <span className="text-xs font-medium text-green-600">
-                      {booking.amount_paid.toLocaleString()} ₽
+                      {formatCurrency(booking.amount_paid, currency)}
                     </span>
                   </div>
                 </div>

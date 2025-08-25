@@ -1,0 +1,205 @@
+{
+  "title": "Календарь бронирований",
+  "grid": {
+    "rooms": "Номера",
+    "loading": "Загрузка бронирований...",
+    "noData": "Бронирования не найдены",
+    "selectDates": "Выберите даты",
+    "dragToSelect": "Перетащите для выбора нескольких дней"
+  },
+  
+  "status": {
+    "confirmed": "Подтверждено",
+    "pending": "Ожидает подтверждения",
+    "cancelled": "Отменено",
+    "checkedIn": "Проживание",
+    "checkedOut": "Выехал",
+    "noShow": "Не заехал"
+  },
+  
+  "form": {
+    "title": "Новое бронирование",
+    "editTitle": "Редактировать бронирование",
+    "checkIn": "Дата заезда",
+    "checkOut": "Дата выезда",
+    "room": "Номер",
+    "guest": "Имя гостя",
+    "email": "Email гостя",
+    "phone": "Телефон",
+    "adults": "Количество взрослых",
+    "children": "Количество детей",
+    "totalAmount": "Общая сумма",
+    "amountPaid": "Оплачено",
+    "notes": "Примечания",
+    "source": "Источник бронирования",
+    "specialRequests": "Особые пожелания"
+  },
+  
+  "sources": {
+    "direct": "Прямое бронирование",
+    "website": "Сайт отеля",
+    "phone": "Телефон",
+    "walkin": "Без брони",
+    "airbnb": "Airbnb",
+    "booking": "Booking.com",
+    "expedia": "Expedia",
+    "agoda": "Agoda",
+    "other": "Другое"
+  },
+  
+  "actions": {
+    "create": "Создать бронирование",
+    "edit": "Редактировать",
+    "cancel": "Отменить бронирование",
+    "confirm": "Подтвердить бронирование",
+    "checkIn": "Заселить",
+    "checkOut": "Выселить",
+    "sendConfirmation": "Отправить подтверждение",
+    "printInvoice": "Печать счета",
+    "addPayment": "Добавить оплату",
+    "refund": "Оформить возврат"
+  },
+  
+  "messages": {
+    "createSuccess": "Бронирование успешно создано",
+    "updateSuccess": "Бронирование успешно обновлено",
+    "cancelSuccess": "Бронирование успешно отменено",
+    "confirmSuccess": "Бронирование подтверждено",
+    "checkInSuccess": "Гость успешно заселен",
+    "checkOutSuccess": "Гость успешно выселен",
+    "confirmCancel": "Вы уверены, что хотите отменить это бронирование?",
+    "cannotModify": "Невозможно изменить завершенное бронирование",
+    "roomNotAvailable": "Номер недоступен на выбранные даты",
+    "minimumStay": "Минимальное проживание {{nights}} ночей",
+    "maximumStay": "Максимальное проживание {{nights}} ночей"
+  },
+  
+  "invoice": {
+    "title": "Счет",
+    "number": "Счет №",
+    "date": "Дата",
+    "dueDate": "Оплатить до",
+    "billTo": "Плательщик",
+    "roomCharges": "Проживание",
+    "additionalServices": "Дополнительные услуги",
+    "subtotal": "Подитог",
+    "tax": "Налог ({{rate}}%)",
+    "total": "Итого",
+    "paid": "Оплачено",
+    "balance": "К оплате",
+    "terms": "Условия и положения",
+    "thankYou": "Спасибо за выбор нашего отеля!"
+  },
+  "grid": {
+    "rooms": "Номера",
+    "loading": "Загрузка календаря...",
+    "guest": "Гость",
+    "hasDebt": "Есть задолженность"
+  },
+  
+  "title": "Новое бронирование",
+  "editTitle": "Редактирование брони",
+  
+  "tabs": {
+    "details": "Детали и Финансы",
+    "services": "Услуги"
+  },
+  
+  "guest": {
+    "title": "Информация о госте",
+    "fullName": "ФИО",
+    "phone": "Телефон",
+    "email": "Email"
+  },
+  
+  "details": {
+    "title": "Детали бронирования",
+    "room": "Номер",
+    "selectRoom": "Выберите номер...",
+    "noAvailableRooms": "Свободных номеров на эти даты нет",
+    "checkIn": "Заезд",
+    "checkOut": "Выезд",
+    "guestCount": "Кол-во гостей",
+    "status": "Статус",
+    "source": "Источник",
+    "notes": "Комментарий",
+    "notesPlaceholder": "Дополнительные заметки..."
+  },
+  
+  "finance": {
+    "title": "Финансы",
+    "accommodation": "Проживание ({{nights}} дн.)",
+    "orderedServices": "Заказанные услуги:",
+    "noServices": "Нет",
+    "total": "Итого",
+    "paid": "Оплачено",
+    "balance": "К оплате"
+  },
+  
+  "services": {
+    "available": "Доступные услуги",
+    "cart": "Корзина услуг",
+    "ordered": "Заказанные услуги",
+    "addToCart": "В корзину",
+    "cartEmpty": "Корзина пуста",
+    "noOrdered": "Услуги не добавлены",
+    "addSelected": "Добавить выбранные услуги"
+  },
+  
+  "actions": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить бронь",
+    "saving": "Сохранение..."
+  },
+  
+  "status": {
+    "pending": "Не подтверждено",
+    "confirmed": "Подтверждено",
+    "checkedIn": "Проживание",
+    "checkedOut": "Выезд",
+    "cancelled": "Отменено"
+  },
+  
+  "sources": {
+    "direct": "Напрямую",
+    "website": "Сайт",
+    "phone": "Телефон",
+    "aiAgent": "AI-агент",
+    "other": "Другое"
+  },
+  
+  "errors": {
+    "guestNameRequired": "Необходимо указать имя гостя"
+  },
+  
+  "messages": {
+    "confirmDelete": "Вы уверены, что хотите удалить это бронирование? Это действие нельзя отменить."
+  },
+  
+  "popover": {
+    "unknownGuest": "Неизвестный гость",
+    "stayPeriod": "Период проживания",
+    "duration": "Длительность",
+    "guestCount": "Количество гостей",
+    "comment": "Комментарий",
+    "additionalServices": "Дополнительные услуги",
+    "accommodation": "Проживание",
+    "services": "Услуги",
+    "total": "Итого",
+    "toPay": "К оплате",
+    "paidFully": "Оплачено полностью",
+    "alreadyPaid": "Уже оплачено"
+  },
+  
+  "roomTypes": {
+    "single": "Одноместный",
+    "double": "Двухместный",
+    "twin": "Твин",
+    "suite": "Люкс",
+    "deluxe": "Делюкс",
+    "standard": "Стандарт",
+    "economy": "Эконом",
+    "family": "Семейный"
+  }
+}

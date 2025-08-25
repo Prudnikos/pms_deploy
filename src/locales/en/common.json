@@ -1,0 +1,145 @@
+{
+  "app": {
+    "name": "Hotel PMS",
+    "tagline": "Professional Property Management System"
+  },
+  
+  "navigation": {
+    "dashboard": "Dashboard",
+    "bookings": "Bookings",
+    "calendar": "Calendar",
+    "rooms": "Rooms",
+    "guests": "Guests",
+    "chat": "Messages",
+    "channels": "Channel Manager",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "sync": "Synchronize",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "refresh": "Refresh",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close",
+    "confirm": "Confirm",
+    "select": "Select",
+    "signOut": "Sign Out"
+  },
+  
+  "status": {
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Information",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "cancelled": "Cancelled",
+    "completed": "Completed"
+  },
+  
+  "time": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "tomorrow": "Tomorrow",
+    "week": "Week",
+    "month": "Month",
+    "year": "Year",
+    "date": "Date",
+    "time": "Time",
+    "from": "From",
+    "to": "To",
+    "duration": "Duration",
+    "nights": "nights",
+    "night": "night",
+    "days": "days",
+    "day": "day"
+  },
+   "room": {
+    "types": {
+      "single": "Single Room",
+      "double": "Double Room",
+      "twin": "Twin Room",
+      "suite": "Suite",
+      "deluxe": "Deluxe Room",
+      "family": "Family Room",
+      "studio": "Studio",
+      "apartment": "Apartment"
+    },
+    "amenities": {
+      "wifi": "Wi-Fi",
+      "breakfast": "Breakfast",
+      "parking": "Parking",
+      "pool": "Swimming Pool",
+      "gym": "Gym",
+      "spa": "Spa",
+      "restaurant": "Restaurant",
+      "bar": "Bar",
+      "airConditioning": "Air Conditioning",
+      "heating": "Heating",
+      "tv": "TV",
+      "minibar": "Minibar",
+      "safe": "Safe",
+      "balcony": "Balcony"
+    }
+  },
+  
+  "guest": {
+    "title": "Guest",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email",
+    "phone": "Phone",
+    "document": "Document",
+    "nationality": "Nationality",
+    "address": "Address",
+    "notes": "Notes",
+    "adults": "Adults",
+    "children": "Children",
+    "infants": "Infants"
+  },
+  
+  "payment": {
+    "total": "Total",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "discount": "Discount",
+    "paid": "Paid",
+    "balance": "Balance",
+    "due": "Amount Due",
+    "method": "Payment Method",
+    "cash": "Cash",
+    "card": "Credit Card",
+    "transfer": "Bank Transfer",
+    "online": "Online Payment"
+  },
+  
+  "messages": {
+    "welcome": "Welcome to {{name}}",
+    "confirmDelete": "Are you sure you want to delete this item?",
+    "saveSuccess": "Successfully saved",
+    "deleteSuccess": "Successfully deleted",
+    "errorOccurred": "An error occurred",
+    "noData": "No data available",
+    "noResults": "No results found",
+    "selectItem": "Please select an item",
+    "required": "This field is required",
+    "invalid": "Invalid value"
+  }
+}
