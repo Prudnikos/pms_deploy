@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(where npm)",
+      "Bash(node:*)",
+      "Bash(npm --version)",
+      "Bash(echo $PATH)",
+      "Bash(find:*)",
+      "Read(/C:\\Users/**)",
+      "Bash(echo $USERPROFILE)",
+      "Read(/C:\\Users\\Кос\\.claude/**)",
+      "Read(/C:\\Users\\Кос/**)",
+      "Bash(echo $env:APPDATA)",
+      "Read(/C:\\Users\\Кос\\AppData\\Roaming/**)",
+      "Bash(claude mcp:*)",
+      "Bash(npm search:*)",
+      "Read(/C:\\Users\\Кос/**)",
+      "Read(/C:\\Users\\Кос/**)",
+      "Read(/C:\\Users\\Кос/**)",
+      "Bash(git reset:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(del NUL)",
+      "Bash(rm:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
