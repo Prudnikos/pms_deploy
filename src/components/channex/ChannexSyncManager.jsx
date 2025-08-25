@@ -19,10 +19,12 @@ import {
   Settings,
   Loader2,
   Cloud,
-  Link2
+  Link2,
+  Webhook
 } from 'lucide-react';
 import channexService from '@/services/channex/ChannexService';
-import { supabase } from '@/lib/supabase'; // Добавляем импорт supabase!
+import { supabase } from '@/lib/supabase';
+import WebhookManager from './WebhookManager';
 
 let logCounter = 0;
 export default function ChannexSyncManager() {
@@ -772,8 +774,12 @@ const handleRealTimeUpdate = (data) => {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
+          <TabsTrigger value="webhooks">
+            <Webhook className="h-4 w-4 mr-2" />
+            Webhooks
+          </TabsTrigger>
           <TabsTrigger value="logs">Логи</TabsTrigger>
           <TabsTrigger value="settings">Настройки</TabsTrigger>
         </TabsList>
@@ -877,6 +883,10 @@ const handleRealTimeUpdate = (data) => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="webhooks">
+          <WebhookManager />
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-4">

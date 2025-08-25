@@ -23,7 +23,15 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(del NUL)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "WebFetch(domain:docs.channex.io)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_click",
+      "WebSearch",
+      "WebFetch(domain:documenter.getpostman.com)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []
