@@ -123,37 +123,61 @@ export const createBooking = async (bookingData) => {
   // 🚀 СИНХРОНИЗАЦИЯ С CHANNEX
   // Асинхронно отправляем бронирование в Channex (не блокируя UI)
   if (data && bookingData.syncToChannex !== false) {
-    // Импортируем channexService динамически чтобы избежать циклических зависимостей
-    import('@/services/channex/ChannexService.js').then(({ default: channexService }) => {
-      // Получаем полные данные бронирования для синхронизации
-      supabase
-        .from('bookings')
-        .select(`
-          *,
-          guests (*),
-          rooms (*)
-        `)
-        .eq('id', data.booking_id || data.id)
-        .single()
-        .then(({ data: fullBooking, error: fetchError }) => {
-          if (fetchError) {
-            console.error('❌ Ошибка получения данных бронирования для синхронизации:', fetchError);
-            return;
-          }
+    console.log('🔄 Начинаем синхронизацию с Channex для booking ID:', data.booking_id || data.id);
+    
+    // Небольшая задержка, чтобы убедиться что данные сохранились
+    setTimeout(async () => {
+      try {
+        // Импортируем channexService динамически чтобы избежать циклических зависимостей
+        const { default: ChannexService } = await import('@/services/channex/ChannexService.js');
+        const channexService = new ChannexService();
+        
+        // Получаем полные данные бронирования для синхронизации
+        const { data: fullBooking, error: fetchError } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            guests (*),
+            rooms (*)
+          `)
+          .eq('id', data.booking_id || data.id)
+          .single();
 
-          console.log('📤 Автоматическая синхронизация бронирования с Channex...');
-          channexService.createBookingInChannex(fullBooking)
-            .then(() => {
-              console.log('✅ Бронирование успешно синхронизировано с Channex!');
-            })
-            .catch(error => {
-              console.error('❌ Ошибка синхронизации с Channex:', error);
-              // Можно добавить уведомление пользователю или повторную попытку
+        if (fetchError) {
+          console.error('❌ Ошибка получения данных бронирования для синхронизации:', fetchError);
+          return;
+        }
+
+        if (!fullBooking) {
+          console.error('❌ Данные бронирования не найдены для синхронизации');
+          return;
+        }
+
+        console.log('📤 Автоматическая синхронизация бронирования с Channex...', fullBooking);
+        
+        // Отправляем в Channex
+        const result = await channexService.createBookingInChannex(fullBooking);
+        console.log('✅ Бронирование успешно синхронизировано с Channex!', result);
+        
+      } catch (error) {
+        console.error('❌ Ошибка синхронизации с Channex:', error);
+        
+        // Сохраняем ошибку для отладки
+        try {
+          await supabase
+            .from('sync_errors')
+            .insert({
+              booking_id: data.booking_id || data.id,
+              service: 'channex',
+              error_message: error.message,
+              error_details: error.stack,
+              occurred_at: new Date().toISOString()
             });
-        });
-    }).catch(error => {
-      console.error('❌ Ошибка импорта ChannexService:', error);
-    });
+        } catch (logError) {
+          console.error('❌ Не удалось сохранить ошибку синхронизации:', logError);
+        }
+      }
+    }, 1000);
   }
 
   return data;
