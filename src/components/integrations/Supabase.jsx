@@ -119,6 +119,43 @@ export const createBooking = async (bookingData) => {
     console.error('Ошибка при создании бронирования:', error);
     throw error;
   }
+
+  // 🚀 СИНХРОНИЗАЦИЯ С CHANNEX
+  // Асинхронно отправляем бронирование в Channex (не блокируя UI)
+  if (data && bookingData.syncToChannex !== false) {
+    // Импортируем channexService динамически чтобы избежать циклических зависимостей
+    import('@/services/channex/ChannexService.js').then(({ default: channexService }) => {
+      // Получаем полные данные бронирования для синхронизации
+      supabase
+        .from('bookings')
+        .select(`
+          *,
+          guests (*),
+          rooms (*)
+        `)
+        .eq('id', data.booking_id || data.id)
+        .single()
+        .then(({ data: fullBooking, error: fetchError }) => {
+          if (fetchError) {
+            console.error('❌ Ошибка получения данных бронирования для синхронизации:', fetchError);
+            return;
+          }
+
+          console.log('📤 Автоматическая синхронизация бронирования с Channex...');
+          channexService.createBookingInChannex(fullBooking)
+            .then(() => {
+              console.log('✅ Бронирование успешно синхронизировано с Channex!');
+            })
+            .catch(error => {
+              console.error('❌ Ошибка синхронизации с Channex:', error);
+              // Можно добавить уведомление пользователю или повторную попытку
+            });
+        });
+    }).catch(error => {
+      console.error('❌ Ошибка импорта ChannexService:', error);
+    });
+  }
+
   return data;
 };
 

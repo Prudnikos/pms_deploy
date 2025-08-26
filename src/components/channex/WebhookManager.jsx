@@ -21,11 +21,17 @@ export default function WebhookManager() {
 
   // Проверяем статус webhook сервера
   const checkWebhookServer = async () => {
+    // Определяем URL в зависимости от окружения
+    const healthUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:3001/health' 
+      : 'https://pms.voda.center/api/health';
+      
     try {
-      const response = await fetch('http://localhost:3001/health');
+      const response = await fetch(healthUrl);
       if (response.ok) {
+        const data = await response.json();
         setWebhookServerStatus('running');
-        addLog('✅ Webhook сервер работает', 'success');
+        addLog(`✅ Webhook сервер работает (${data.environment || 'production'})`, 'success');
       } else {
         setWebhookServerStatus('error');
         addLog('❌ Webhook сервер недоступен', 'error');
@@ -149,7 +155,11 @@ export default function WebhookManager() {
       };
 
       // Отправляем webhook на наш сервер
-      const response = await fetch('http://localhost:3001/api/channex/webhook', {
+      const webhookUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3001/api/channex/webhook' 
+        : 'https://pms.voda.center/api/channex/webhook';
+      
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -287,14 +297,19 @@ export default function WebhookManager() {
               <input
                 type="text"
                 className="flex-1 p-2 border rounded bg-slate-50"
-                value="http://localhost:3001/api/channex/webhook"
+                value={window.location.hostname === 'localhost' 
+                  ? 'http://localhost:3001/api/channex/webhook' 
+                  : 'https://pms.voda.center/api/channex/webhook'}
                 readOnly
               />
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => {
-                  navigator.clipboard.writeText('http://localhost:3001/api/channex/webhook');
+                  const webhookUrl = window.location.hostname === 'localhost' 
+                    ? 'http://localhost:3001/api/channex/webhook' 
+                    : 'https://pms.voda.center/api/channex/webhook';
+                  navigator.clipboard.writeText(webhookUrl);
                   addLog('✅ URL скопирован в буфер обмена', 'success');
                 }}
               >

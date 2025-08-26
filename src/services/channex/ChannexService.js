@@ -3,14 +3,26 @@ import { supabase } from '@/lib/supabase';
 class ChannexService {
   constructor() {
     this.baseURL = import.meta.env.VITE_CHANNEX_API_URL || 'https://api.channex.io/api/v1';
-    this.apiKey = import.meta.env.VITE_CHANNEX_API_KEY || 'your-api-key-here';
-    this.propertyId = import.meta.env.VITE_CHANNEX_PROPERTY_ID || 'your-property-id';
-    this.useMockData = !this.apiKey || this.apiKey === 'your-api-key-here';
+    this.apiKey = import.meta.env.VITE_CHANNEX_API_KEY;
+    this.propertyId = import.meta.env.VITE_CHANNEX_PROPERTY_ID;
+    
+    // Определяем режим работы: если нет API ключа или он совпадает с тестовым - MOCK режим
+    const testApiKey = 'uUdBtyJdPAYoP0m0qrEStPh2WJcXCBBBLMngnPxygFWpw0GyDE/nmvN/6wN7gXV+';
+    this.useMockData = !this.apiKey || this.apiKey === testApiKey || this.apiKey === '';
+    
+    // Для production - используем HTTPS API endpoint
+    if (!this.useMockData && this.baseURL.includes('staging')) {
+      this.baseURL = 'https://api.channex.io/api/v1';
+      console.log('🚀 Переключились на production API: https://api.channex.io/api/v1');
+    }
     
     if (this.useMockData) {
       console.log('🎭 Channex работает в режиме MOCK данных');
+      console.log('📝 Для production установите VITE_CHANNEX_API_KEY в .env.local');
     } else {
       console.log('✅ Channex работает в режиме PRODUCTION');
+      console.log(`🏨 Property ID: ${this.propertyId}`);
+      console.log(`🔗 API URL: ${this.baseURL}`);
     }
   }
 
@@ -57,9 +69,7 @@ mapChannexToPMSBooking(channexBooking) {
     source: this.getBookingSource(channexBooking.ota_name),
     check_in: channexBooking.arrival_date,
     check_out: channexBooking.departure_date,
-    guest_name: channexBooking.customer?.name || 'Guest',
-    guest_email: channexBooking.customer?.email || '',
-    guest_phone: channexBooking.customer?.phone || '',
+    guest_details: channexBooking.customer?.name || 'Guest', // Используем guest_details вместо guest_name
     total_amount: channexBooking.total_price || 0,
     status: this.mapBookingStatus(channexBooking.status),
     guests_count: (channexBooking.occupancy?.adults || 0) + (channexBooking.occupancy?.children || 0),
@@ -631,6 +641,220 @@ async setupProperty() {
         currency: 'RUB'
       }]
     };
+  }
+
+  // ========================
+  // СИНХРОНИЗАЦИЯ БРОНИРОВАНИЙ В CHANNEX
+  // ========================
+
+  /**
+   * Отправка нового бронирования В Channex
+   */
+  async createBookingInChannex(pmsBooking) {
+    console.log('📤 Отправляем бронирование В Channex:', pmsBooking);
+    
+    try {
+      // Маппим данные из PMS в формат Channex
+      const channexBooking = this.mapPMSToChannexBooking(pmsBooking);
+      console.log('🔄 Данные для Channex:', channexBooking);
+      
+      // Отправляем через booking_revisions API
+      const response = await this.apiRequest('/booking_revisions', {
+        method: 'POST',
+        body: JSON.stringify({ booking_revision: channexBooking })
+      });
+      
+      if (response?.data) {
+        console.log('✅ Бронирование создано в Channex:', response.data.id);
+        
+        // Сохраняем external_booking_id в нашу БД
+        await supabase
+          .from('bookings')
+          .update({ 
+            external_booking_id: response.data.id,
+            channex_data: response.data 
+          })
+          .eq('id', pmsBooking.id);
+          
+        return response.data;
+      }
+      
+      throw new Error('Нет данных в ответе от Channex');
+      
+    } catch (error) {
+      console.error('❌ Ошибка отправки бронирования в Channex:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Обновление бронирования в Channex
+   */
+  async updateBookingInChannex(pmsBooking) {
+    if (!pmsBooking.external_booking_id) {
+      throw new Error('Нет external_booking_id для обновления в Channex');
+    }
+    
+    console.log('📝 Обновляем бронирование в Channex:', pmsBooking.external_booking_id);
+    
+    try {
+      const channexBooking = this.mapPMSToChannexBooking(pmsBooking);
+      
+      const response = await this.apiRequest(`/booking_revisions/${pmsBooking.external_booking_id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ booking_revision: channexBooking })
+      });
+      
+      if (response?.data) {
+        console.log('✅ Бронирование обновлено в Channex');
+        
+        // Обновляем channex_data в БД
+        await supabase
+          .from('bookings')
+          .update({ channex_data: response.data })
+          .eq('id', pmsBooking.id);
+          
+        return response.data;
+      }
+      
+    } catch (error) {
+      console.error('❌ Ошибка обновления бронирования в Channex:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Отмена бронирования в Channex
+   */
+  async cancelBookingInChannex(pmsBooking) {
+    if (!pmsBooking.external_booking_id) {
+      throw new Error('Нет external_booking_id для отмены в Channex');
+    }
+    
+    console.log('❌ Отменяем бронирование в Channex:', pmsBooking.external_booking_id);
+    
+    try {
+      const response = await this.apiRequest(`/booking_revisions/${pmsBooking.external_booking_id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ 
+          booking_revision: { status: 'cancelled' } 
+        })
+      });
+      
+      if (response) {
+        console.log('✅ Бронирование отменено в Channex');
+        
+        await supabase
+          .from('bookings')
+          .update({ 
+            status: 'cancelled',
+            channex_data: response.data 
+          })
+          .eq('id', pmsBooking.id);
+          
+        return response.data;
+      }
+      
+    } catch (error) {
+      console.error('❌ Ошибка отмены бронирования в Channex:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Маппинг данных из PMS в формат Channex
+   */
+  mapPMSToChannexBooking(pmsBooking) {
+    return {
+      // Основная информация
+      arrival_date: pmsBooking.check_in,
+      departure_date: pmsBooking.check_out,
+      status: this.mapPMSStatusToChannex(pmsBooking.status),
+      
+      // Информация о госте
+      customer: {
+        name: pmsBooking.guests?.full_name || pmsBooking.guest_details || 'Guest',
+        email: pmsBooking.guests?.email || '',
+        phone: pmsBooking.guests?.phone || ''
+      },
+      
+      // Финансы
+      total_price: parseFloat(pmsBooking.total_amount || 0),
+      currency: 'RUB',
+      
+      // Размещение
+      occupancy: {
+        adults: pmsBooking.guests_count || 1,
+        children: 0,
+        infants: 0
+      },
+      
+      // Дополнительно
+      notes: pmsBooking.notes || '',
+      
+      // Комната (если есть)
+      room_type_id: pmsBooking.room_type || null,
+      
+      // Источник
+      ota_name: 'Direct'
+    };
+  }
+
+  /**
+   * Маппинг статусов из PMS в Channex
+   */
+  mapPMSStatusToChannex(pmsStatus) {
+    const mapping = {
+      'pending': 'new',
+      'confirmed': 'confirmed', 
+      'checked_in': 'confirmed',
+      'checked_out': 'confirmed',
+      'cancelled': 'cancelled'
+    };
+    
+    return mapping[pmsStatus] || 'new';
+  }
+
+  /**
+   * Синхронизация ВСЕХ бронирований из PMS в Channex
+   */
+  async syncAllBookingsToChannex() {
+    console.log('🔄 Синхронизируем все бронирования В Channex...');
+    
+    try {
+      // Получаем все активные бронирования без external_booking_id
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          guests (*),
+          rooms (*)
+        `)
+        .is('external_booking_id', null)
+        .in('status', ['pending', 'confirmed', 'checked_in']);
+        
+      if (error) throw error;
+      
+      let synced = 0;
+      let failed = 0;
+      
+      for (const booking of bookings || []) {
+        try {
+          await this.createBookingInChannex(booking);
+          synced++;
+        } catch (error) {
+          console.error(`❌ Не удалось синхронизировать бронирование ${booking.id}:`, error);
+          failed++;
+        }
+      }
+      
+      console.log(`✅ Синхронизация завершена: ${synced} успешно, ${failed} ошибок`);
+      return { synced, failed, total: bookings?.length || 0 };
+      
+    } catch (error) {
+      console.error('❌ Ошибка массовой синхронизации:', error);
+      throw error;
+    }
   }
 }
 

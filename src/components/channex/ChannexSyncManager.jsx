@@ -1002,6 +1002,24 @@ const handleRealTimeUpdate = (data) => {
       <Button size="sm" variant="outline" onClick={simulateChannexBooking}>
         📥 Новое бронирование
       </Button>
+      
+      <Button size="sm" variant="outline" onClick={async () => {
+        addLog('📤 Синхронизируем бронирования В Channex...', 'info');
+        
+        try {
+          setSyncProgress(0);
+          const result = await channexService.syncAllBookingsToChannex();
+          addLog(`✅ Синхронизация завершена: ${result.synced}/${result.total} бронирований отправлено в Channex`, 'success');
+          if (result.failed > 0) {
+            addLog(`⚠️ Не удалось синхронизировать ${result.failed} бронирований`, 'warning');
+          }
+          loadSyncStats(); // Обновляем статистику
+        } catch (error) {
+          addLog(`❌ Ошибка синхронизации бронирований: ${error.message}`, 'error');
+        }
+      }}>
+        📤 Синхронизировать бронирования
+      </Button>
       <Button size="sm" variant="outline" onClick={getPropertyId}>
   🔍 Получить Property ID
 </Button>
