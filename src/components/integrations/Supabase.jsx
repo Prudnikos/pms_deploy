@@ -123,14 +123,13 @@ export const createBooking = async (bookingData) => {
   // 🚀 СИНХРОНИЗАЦИЯ С CHANNEX
   // Асинхронно отправляем бронирование в Channex (не блокируя UI)
   if (data && bookingData.syncToChannex !== false) {
-    console.log('🔄 Начинаем синхронизацию с Channex для booking ID:', data.booking_id || data.id);
+    console.log('🔄 Начинаем синхронизацию с Channex для booking ID:', data.id || data.booking_id);
     
     // Небольшая задержка, чтобы убедиться что данные сохранились
     setTimeout(async () => {
       try {
         // Импортируем channexService динамически чтобы избежать циклических зависимостей
-        const { default: ChannexService } = await import('@/services/channex/ChannexService.js');
-        const channexService = new ChannexService();
+        const { default: channexService } = await import('@/services/channex/ChannexService.js');
         
         // Получаем полные данные бронирования для синхронизации
         const { data: fullBooking, error: fetchError } = await supabase
@@ -140,7 +139,7 @@ export const createBooking = async (bookingData) => {
             guests (*),
             rooms (*)
           `)
-          .eq('id', data.booking_id || data.id)
+          .eq('id', data.id || data.booking_id)
           .single();
 
         if (fetchError) {
@@ -162,20 +161,14 @@ export const createBooking = async (bookingData) => {
       } catch (error) {
         console.error('❌ Ошибка синхронизации с Channex:', error);
         
-        // Сохраняем ошибку для отладки
-        try {
-          await supabase
-            .from('sync_errors')
-            .insert({
-              booking_id: data.booking_id || data.id,
-              service: 'channex',
-              error_message: error.message,
-              error_details: error.stack,
-              occurred_at: new Date().toISOString()
-            });
-        } catch (logError) {
-          console.error('❌ Не удалось сохранить ошибку синхронизации:', logError);
-        }
+        // Логируем ошибку в консоль (таблица sync_errors не существует)
+        console.error('❌ Детали ошибки синхронизации:', {
+          booking_id: data.id || data.booking_id,
+          service: 'channex',
+          error_message: error.message,
+          error_stack: error.stack,
+          occurred_at: new Date().toISOString()
+        });
       }
     }, 1000);
   }
