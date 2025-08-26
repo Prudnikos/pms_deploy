@@ -120,10 +120,14 @@ export const createBooking = async (bookingData) => {
     throw error;
   }
 
+  console.log('📋 Результат создания бронирования:', data);
+
   // 🚀 СИНХРОНИЗАЦИЯ С CHANNEX
   // Асинхронно отправляем бронирование в Channex (не блокируя UI)
   if (data && bookingData.syncToChannex !== false) {
-    console.log('🔄 Начинаем синхронизацию с Channex для booking ID:', data.id || data.booking_id);
+    // Получаем правильный ID бронирования из ответа RPC функции
+    const bookingId = data.id || data.booking_id || (Array.isArray(data) ? data[0]?.id : null);
+    console.log('🔄 Начинаем синхронизацию с Channex для booking ID:', bookingId);
     
     // Небольшая задержка, чтобы убедиться что данные сохранились
     setTimeout(async () => {
@@ -131,6 +135,12 @@ export const createBooking = async (bookingData) => {
         // Импортируем channexService динамически чтобы избежать циклических зависимостей
         const { default: channexService } = await import('@/services/channex/ChannexService.js');
         
+        // Проверяем что у нас есть правильный ID
+        if (!bookingId) {
+          console.error('❌ Не удалось получить ID бронирования для синхронизации');
+          return;
+        }
+
         // Получаем полные данные бронирования для синхронизации
         const { data: fullBooking, error: fetchError } = await supabase
           .from('bookings')
@@ -139,7 +149,7 @@ export const createBooking = async (bookingData) => {
             guests (*),
             rooms (*)
           `)
-          .eq('id', data.id || data.booking_id)
+          .eq('id', bookingId)
           .single();
 
         if (fetchError) {
@@ -163,7 +173,7 @@ export const createBooking = async (bookingData) => {
         
         // Логируем ошибку в консоль (таблица sync_errors не существует)
         console.error('❌ Детали ошибки синхронизации:', {
-          booking_id: data.id || data.booking_id,
+          booking_id: bookingId,
           service: 'channex',
           error_message: error.message,
           error_stack: error.stack,

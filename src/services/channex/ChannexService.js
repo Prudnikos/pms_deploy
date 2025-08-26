@@ -6,9 +6,9 @@ class ChannexService {
     this.apiKey = import.meta.env.VITE_CHANNEX_API_KEY;
     this.propertyId = import.meta.env.VITE_CHANNEX_PROPERTY_ID;
     
-    // Определяем режим работы: если нет API ключа или он совпадает с тестовым - MOCK режим
-    const testApiKey = 'uUdBtyJdPAYoP0m0qrEStPh2WJcXCBBBLMngnPxygFWpw0GyDE/nmvN/6wN7gXV+';
-    this.useMockData = !this.apiKey || this.apiKey === testApiKey || this.apiKey === '';
+    // Определяем режим работы: если нет API ключа - MOCK режим
+    // ВАЖНО: API ключ из .env валидный, не сравниваем его с "тестовым"
+    this.useMockData = !this.apiKey || this.apiKey === '' || this.apiKey === 'your-api-key-here';
     
     // Для production - используем HTTPS API endpoint
     if (!this.useMockData && this.baseURL.includes('staging')) {
