@@ -126,7 +126,8 @@ export const createBooking = async (bookingData) => {
   // Асинхронно отправляем бронирование в Channex (не блокируя UI)
   if (data && bookingData.syncToChannex !== false) {
     // Получаем правильный ID бронирования из ответа RPC функции
-    const bookingId = data.id || data.booking_id || (Array.isArray(data) ? data[0]?.id : null);
+    // RPC функция может возвращать строку UUID, объект или массив
+    const bookingId = typeof data === 'string' ? data : (data.id || data.booking_id || (Array.isArray(data) ? data[0]?.id : null));
     console.log('🔄 Начинаем синхронизацию с Channex для booking ID:', bookingId);
     
     // Небольшая задержка, чтобы убедиться что данные сохранились
