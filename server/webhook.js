@@ -4,7 +4,11 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 
 // Загружаем переменные окружения
-dotenv.config();
+if (process.env.NODE_ENV === 'production') {
+  dotenv.config({ path: '.env.production' });
+} else {
+  dotenv.config({ path: '.env.local' });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;

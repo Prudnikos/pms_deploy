@@ -31,7 +31,11 @@
       "mcp__playwright__browser_click",
       "WebSearch",
       "WebFetch(domain:documenter.getpostman.com)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(curl:*)",
+      "mcp__playwright__browser_close",
+      "mcp__playwright__browser_wait_for",
+      "Bash(ping:*)"
     ],
     "deny": [],
     "ask": []

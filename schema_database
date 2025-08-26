@@ -1,0 +1,356 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.booking_services (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT now(),
+  booking_id uuid NOT NULL,
+  service_id uuid NOT NULL,
+  quantity integer NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  price_at_booking numeric NOT NULL,
+  amount_paid bigint,
+  status text DEFAULT '''pending'''::text,
+  CONSTRAINT booking_services_pkey PRIMARY KEY (id),
+  CONSTRAINT booking_services_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
+  CONSTRAINT booking_services_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
+);
+CREATE TABLE public.bookings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT now(),
+  check_in date NOT NULL,
+  check_out date NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text,
+  source text,
+  guests_count integer,
+  total_amount numeric,
+  notes text,
+  room_id uuid,
+  guest_id uuid,
+  amount_paid numeric DEFAULT 0,
+  services_total numeric DEFAULT 0,
+  accommodation_total text,
+  guest_details text,
+  external_booking_id text UNIQUE,
+  channex_data jsonb,
+  CONSTRAINT bookings_pkey PRIMARY KEY (id),
+  CONSTRAINT bookings_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id),
+  CONSTRAINT bookings_guest_id_fkey FOREIGN KEY (guest_id) REFERENCES public.guests(id)
+);
+CREATE TABLE public.channex_room_mapping (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  room_id uuid UNIQUE,
+  channex_room_id text NOT NULL UNIQUE,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT channex_room_mapping_pkey PRIMARY KEY (id),
+  CONSTRAINT channex_room_mapping_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
+);
+CREATE TABLE public.channex_sync_stats (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  properties integer DEFAULT 0,
+  rooms integer DEFAULT 0,
+  bookings integer DEFAULT 0,
+  availability integer DEFAULT 0,
+  last_sync_at timestamp with time zone,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT channex_sync_stats_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.channex_webhook_errors (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  error_message text NOT NULL,
+  error_stack text,
+  payload jsonb,
+  occurred_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT channex_webhook_errors_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.channex_webhook_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  event_type text NOT NULL,
+  payload jsonb NOT NULL,
+  processed_at timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'pending'::text,
+  error_message text,
+  CONSTRAINT channex_webhook_logs_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.channex_webhooks (
+  id integer NOT NULL DEFAULT nextval('channex_webhooks_id_seq'::regclass),
+  event_type character varying NOT NULL,
+  payload jsonb NOT NULL,
+  property_id character varying,
+  received_at timestamp with time zone DEFAULT now(),
+  processed boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  processed_at timestamp with time zone,
+  CONSTRAINT channex_webhooks_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.chat_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  message text NOT NULL,
+  response text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT chat_messages_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.complaints (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT now(),
+  guest_id uuid,
+  booking_id uuid,
+  subject text NOT NULL,
+  description text NOT NULL,
+  status text NOT NULL DEFAULT 'open'::text,
+  resolution_notes text,
+  CONSTRAINT complaints_pkey PRIMARY KEY (id),
+  CONSTRAINT complaints_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
+  CONSTRAINT complaints_guest_id_fkey FOREIGN KEY (guest_id) REFERENCES public.guests(id)
+);
+CREATE TABLE public.contacts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  full_name text,
+  avatar_url text,
+  channel text,
+  external_id text,
+  instagram_sender_id text,
+  CONSTRAINT contacts_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.conversation_members (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  conversation_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT conversation_members_pkey PRIMARY KEY (id),
+  CONSTRAINT conversation_members_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
+);
+CREATE TABLE public.conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  channel text,
+  assigned_to_id uuid,
+  status text DEFAULT 'open'::text,
+  last_message_preview text,
+  updated_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  staff_users_id uuid,
+  avito_user_id text,
+  avito_chat_id text,
+  staff_last_seen_at timestamp with time zone,
+  telegram_user_id text,
+  email_sender_address text,
+  whatsapp_sender_id text,
+  contact_id uuid,
+  content text,
+  guest_id uuid,
+  whatsapp_message_id text,
+  instagram_sender_id text,
+  CONSTRAINT conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT conversations_assigned_to_id_fkey FOREIGN KEY (assigned_to_id) REFERENCES public.staff_users(id),
+  CONSTRAINT conversations_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES public.contacts(id),
+  CONSTRAINT conversations_guest_id_fkey FOREIGN KEY (guest_id) REFERENCES public.guests(id),
+  CONSTRAINT conversations_staff_users_id_fkey FOREIGN KEY (staff_users_id) REFERENCES public.staff_users(id)
+);
+CREATE TABLE public.daily_reports (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  report_date date NOT NULL UNIQUE,
+  income_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  expenses_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  auto_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT daily_reports_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.daily_reports_history (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  report_id uuid NOT NULL,
+  action character varying NOT NULL CHECK (action::text = ANY (ARRAY['create'::character varying, 'update'::character varying, 'delete'::character varying]::text[])),
+  old_data jsonb,
+  new_data jsonb,
+  changed_at timestamp with time zone DEFAULT now(),
+  user_id uuid,
+  CONSTRAINT daily_reports_history_pkey PRIMARY KEY (id),
+  CONSTRAINT daily_reports_history_report_id_fkey FOREIGN KEY (report_id) REFERENCES public.daily_reports(id)
+);
+CREATE TABLE public.guests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT now(),
+  full_name text,
+  phone text,
+  email text UNIQUE,
+  notes text,
+  CONSTRAINT guests_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.hotel_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL DEFAULT 'Voda Hotel'::text,
+  email text,
+  phone text,
+  address text,
+  city text DEFAULT 'Moscow'::text,
+  state text DEFAULT 'Moscow Region'::text,
+  country text DEFAULT 'RU'::text,
+  zip text,
+  timezone text DEFAULT 'Europe/Moscow'::text,
+  currency text DEFAULT 'RUB'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT hotel_settings_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.hotels (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name character varying NOT NULL,
+  address text,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT hotels_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.housekeeping_tasks (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  room_number text NOT NULL,
+  task_type text NOT NULL,
+  priority text NOT NULL DEFAULT 'medium'::text,
+  status text NOT NULL DEFAULT 'pending'::text,
+  assigned_to text,
+  description text,
+  estimated_duration integer DEFAULT 30,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  completed_at timestamp with time zone,
+  CONSTRAINT housekeeping_tasks_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.inventory_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  category text NOT NULL,
+  current_stock integer NOT NULL DEFAULT 0,
+  min_stock integer NOT NULL DEFAULT 0,
+  max_stock integer NOT NULL DEFAULT 100,
+  unit text NOT NULL DEFAULT 'шт'::text,
+  cost_per_unit numeric DEFAULT 0,
+  location text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT inventory_items_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.inventory_movements (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  item_id uuid NOT NULL,
+  movement_type text NOT NULL,
+  quantity integer NOT NULL,
+  reason text,
+  room_number text,
+  staff_member text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT inventory_movements_pkey PRIMARY KEY (id),
+  CONSTRAINT inventory_movements_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.inventory_items(id)
+);
+CREATE TABLE public.menu_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  description text,
+  price numeric NOT NULL,
+  category text,
+  available boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT menu_items_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  conversation_id uuid NOT NULL,
+  sender_id text,
+  sender_type text NOT NULL,
+  content text,
+  media_url text,
+  created_at timestamp with time zone DEFAULT now(),
+  media_type text,
+  status USER-DEFINED DEFAULT 'sent'::message_status,
+  external_message_id text,
+  updated_at timestamp with time zone,
+  whatsapp_message_id text,
+  brevo_message_id text,
+  instagram_sender_id uuid,
+  instagram_message_id uuid,
+  CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id)
+);
+CREATE TABLE public.notes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  content text DEFAULT ''::text,
+  user_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notes_pkey PRIMARY KEY (id),
+  CONSTRAINT notes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.order_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  order_id uuid NOT NULL,
+  menu_item_id uuid NOT NULL,
+  quantity integer NOT NULL DEFAULT 1,
+  price_at_order numeric NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT order_items_pkey PRIMARY KEY (id),
+  CONSTRAINT order_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.restaurant_orders(id),
+  CONSTRAINT order_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
+);
+CREATE TABLE public.restaurant_orders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  room_number text NOT NULL,
+  status text NOT NULL DEFAULT 'new'::text,
+  total_amount numeric DEFAULT 0,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  booking_id uuid,
+  CONSTRAINT restaurant_orders_pkey PRIMARY KEY (id),
+  CONSTRAINT restaurant_orders_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id)
+);
+CREATE TABLE public.room_types (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  hotel_id uuid,
+  name character varying NOT NULL,
+  description text,
+  CONSTRAINT room_types_pkey PRIMARY KEY (id),
+  CONSTRAINT room_types_hotel_id_fkey FOREIGN KEY (hotel_id) REFERENCES public.hotels(id)
+);
+CREATE TABLE public.rooms (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT now(),
+  room_number text NOT NULL UNIQUE,
+  room_type text,
+  capacity integer,
+  price_per_night numeric,
+  description text,
+  image_urls jsonb,
+  bookings_id uuid,
+  room_type_id uuid,
+  CONSTRAINT rooms_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_room_types FOREIGN KEY (room_type_id) REFERENCES public.room_types(id)
+);
+CREATE TABLE public.services (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT now(),
+  name text NOT NULL UNIQUE,
+  price numeric NOT NULL,
+  category text,
+  image_urls jsonb,
+  CONSTRAINT services_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.staff_users (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  full_name text,
+  login text UNIQUE,
+  password_hash text,
+  role text,
+  created_at timestamp with time zone DEFAULT now(),
+  avatar_url text,
+  CONSTRAINT staff_users_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.webhook_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  setting_key text NOT NULL,
+  setting_value text NOT NULL,
+  updated_at timestamp without time zone DEFAULT now(),
+  created_at timestamp without time zone,
+  CONSTRAINT webhook_settings_pkey PRIMARY KEY (id)
+);
