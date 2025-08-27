@@ -185,7 +185,7 @@ async function handleBookingRevisionEvent(eventType, revisionId, webhookData) {
  */
 async function fetchBookingFromChannex(bookingId) {
   const apiKey = process.env.VITE_CHANNEX_API_KEY;
-  const apiUrl = process.env.VITE_CHANNEX_API_URL || 'https://api.channex.io/api/v1';
+  const apiUrl = process.env.VITE_CHANNEX_API_URL || 'https://staging.channex.io/api/v1';
   
   if (!apiKey) {
     console.warn('⚠️ CHANNEX_API_KEY не настроен, используем mock данные');
@@ -219,7 +219,7 @@ async function fetchBookingFromChannex(bookingId) {
  */
 async function fetchBookingRevisionFromChannex(revisionId) {
   const apiKey = process.env.VITE_CHANNEX_API_KEY;
-  const apiUrl = process.env.VITE_CHANNEX_API_URL || 'https://api.channex.io/api/v1';
+  const apiUrl = process.env.VITE_CHANNEX_API_URL || 'https://staging.channex.io/api/v1';
   
   if (!apiKey) {
     console.warn('⚠️ CHANNEX_API_KEY не настроен');

@@ -1,5 +1,5 @@
 // Синхронизация бронирований С вашей платформы В Channex
-import { channexApiRequest } from './ChannexService.js';
+import { channexApiRequest } from './ChannexService.jsx';
 import { supabase } from '@/lib/supabase';
 
 /**

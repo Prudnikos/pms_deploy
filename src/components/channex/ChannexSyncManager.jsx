@@ -22,9 +22,10 @@ import {
   Link2,
   Webhook
 } from 'lucide-react';
-import channexService from '@/services/channex/ChannexService';
+import channexService from '@/services/channex/ChannexService.jsx';
 import { supabase } from '@/lib/supabase';
 import WebhookManager from './WebhookManager';
+import ChannexBookingManager from './ChannexBookingManager';
 
 let logCounter = 0;
 export default function ChannexSyncManager() {
@@ -774,8 +775,12 @@ const handleRealTimeUpdate = (data) => {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
+          <TabsTrigger value="bookings">
+            <Calendar className="h-4 w-4 mr-2" />
+            Бронирования
+          </TabsTrigger>
           <TabsTrigger value="webhooks">
             <Webhook className="h-4 w-4 mr-2" />
             Webhooks
@@ -885,6 +890,10 @@ const handleRealTimeUpdate = (data) => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="bookings">
+          <ChannexBookingManager />
+        </TabsContent>
+
         <TabsContent value="webhooks">
           <WebhookManager />
         </TabsContent>
@@ -943,7 +952,7 @@ const handleRealTimeUpdate = (data) => {
                 <input
                   type="text"
                   className="w-full p-2 border rounded"
-                  value="https://api.channex.io/api/v1"
+                  value="https://staging.channex.io/api/v1"
                   disabled
                 />
               </div>

@@ -16,7 +16,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useTranslation } from '@/hooks/useTranslation';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 // Импортируем Channex сервис для обновления цен
-import channexService from '@/services/channex/ChannexService';
+import channexService from '@/services/channex/ChannexService.jsx';
 
 export default function Dashboard() {
   const [bookings, setBookings] = useState([]);

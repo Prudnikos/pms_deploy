@@ -35,9 +35,19 @@
       "Bash(curl:*)",
       "mcp__playwright__browser_close",
       "mcp__playwright__browser_wait_for",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(nslookup:*)",
+      "Bash(taskkill:*)",
+      "Read(/C:\\c/**)",
+      "Bash(npx playwright install:*)",
+      "Bash(npx supabase db dump:*)",
+      "Bash(vercel env:*)",
+      "Bash(npx vercel env:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\c"
+    ]
   }
 }

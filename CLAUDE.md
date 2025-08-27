@@ -133,7 +133,7 @@ Based on component analysis, the system expects:
 
 ### External Services
 - **Supabase**: Primary backend (auth + database)
-- **Channex**: Channel manager for booking distribution
+- **Channex**: Channel manager for booking distribution ✅ **ПОЛНОСТЬЮ НАСТРОЕНО**
 - **Base44**: SDK integration (currently disabled)
 - **Google OAuth**: Authentication provider
 
@@ -142,11 +142,83 @@ Based on component analysis, the system expects:
 - Base44 client setup (commented out)
 - Supabase client configuration with hardcoded credentials
 
+## Channex Integration (ПОЛНОСТЬЮ РАБОТАЕТ) ✅
+
+**Статус**: 🟢 Производственная готовность достигнута  
+**Дата завершения**: 27 августа 2025  
+**Тестирование**: ✅ Успешно создано 3 бронирования в staging.channex.io
+
+### Архитектура интеграции
+- **Основной сервис**: `src/services/channex/ChannexService.jsx`
+- **API endpoint**: `https://staging.channex.io/api/v1`
+- **Метод создания**: Booking CRS API (`POST /bookings`)
+- **Property ID**: `6ae9708a-cbaa-4134-bf04-29314e842709`
+
+### Маппинг номеров
+Система автоматически определяет тип комнаты по номеру:
+- **Номер 101** → `Standard Room` (£100/ночь)
+- **Номер 201** → `Deluxe Room` (£200/ночь) 
+- **Номер 3xx** → `Suite` (£300/ночь)
+
+### Обязательные поля API
+```javascript
+{
+  property_id: "required",
+  ota_reservation_code: "PMS-{booking_id}",
+  ota_name: "Booking.com", // валидный провайдер
+  currency: "GBP", // обязательное поле
+  arrival_date: "YYYY-MM-DD",
+  departure_date: "YYYY-MM-DD",
+  customer: {
+    name: "required",
+    surname: "required", 
+    mail: "required", // НЕ email!
+    country: "GB" // исправлено с RU
+  },
+  rooms: [{
+    room_type_id: "channex_room_type_id",
+    rate_plan_id: "channex_rate_plan_id",
+    days: { "YYYY-MM-DD": "price" }, // цены по дням
+    occupancy: { adults: 1, children: 0 }
+  }]
+}
+```
+
+### Маппинг источников бронирований
+```javascript
+mapSourceToOtaName(source) {
+  'Open Channel' → 'Booking.com'  // валидный провайдер
+  'booking' → 'Booking.com'
+  'direct' → 'Booking.com' 
+  // Fallback: 'Booking.com'
+}
+```
+
+### Успешные тесты
+**Созданные бронирования в Channex:**
+1. `BDC-PMS-201-TEST` - Jane Doe - £400.00 GBP (Deluxe Room)
+2. `BDC-PMS-101-TEST` - John Smith - £200.00 GBP (Standard Room)  
+3. `BDC-PMS-TEST-101` - John Doe - £400.00 GBP
+
+### Критические исправления
+1. **ota_name**: "Open Channel" → "Booking.com" (валидный провайдер)
+2. **currency**: Добавлено обязательное поле "GBP"
+3. **customer.mail**: Используется "mail", НЕ "email"
+4. **country**: Изменено с "RU" на "GB"
+5. **Импорты**: Исправлены .js → .jsx для корректной работы Vite
+
+### Файлы интеграции
+- `src/services/channex/ChannexService.jsx` - основной сервис
+- `src/components/channex/ChannexSyncManager.jsx` - UI компонент
+- `src/services/channex/BookingSync.js` - синхронизация (legacy)
+- Tests: `test-channex-booking.cjs`, `final-channex-test.cjs`
+
 ## Security Notes
 
 - Supabase credentials are hardcoded in `src/lib/supabase.js` (should use environment variables)
 - Authentication tokens handled by Supabase SDK
 - Row Level Security should be implemented in Supabase for data protection
+- **Channex API Key**: Хранится в `.env.local` (production ready)
 ## AI Assistant Guidelones
 
 Разработка ведется на ОС Windows

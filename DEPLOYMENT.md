@@ -32,7 +32,7 @@ cd /var/www/pms-webhook
 npm install --production
 
 # Создайте .env.production с реальными API ключами:
-# VITE_CHANNEX_API_URL=https://api.channex.io/api/v1
+# VITE_CHANNEX_API_URL=https://staging.channex.io/api/v1
 # VITE_CHANNEX_API_KEY=ВАШ_РЕАЛЬНЫЙ_API_КЛЮЧ
 # VITE_CHANNEX_PROPERTY_ID=6ae9708a-cbaa-4134-bf04-29314e842709
 # VITE_CHANNEX_WEBHOOK_SECRET=hotel_pms_webhook_secret_production_2024

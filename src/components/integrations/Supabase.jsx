@@ -134,7 +134,7 @@ export const createBooking = async (bookingData) => {
     setTimeout(async () => {
       try {
         // Импортируем channexService динамически чтобы избежать циклических зависимостей
-        const { default: channexService } = await import('@/services/channex/ChannexService.js');
+        const { default: channexService } = await import('@/services/channex/ChannexService.jsx');
         
         // Проверяем что у нас есть правильный ID
         if (!bookingId) {

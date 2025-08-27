@@ -20,13 +20,15 @@ export default function NewBookingModal({ bookingToEdit, selectedCell, allBookin
   
   // Источники бронирования и статусы с переводами
   const sources = [
-    { value: 'direct', label: t('sources.direct') },
-    { value: 'booking', label: 'Booking.com' },
-    { value: 'airbnb', label: 'Airbnb' },
+    { value: 'Direct', label: t('sources.direct') },
+    { value: 'Booking.com', label: 'Booking.com' },
+    { value: 'Airbnb', label: 'Airbnb' },
     { value: 'site', label: t('sources.website') },
     { value: 'ai_agent', label: t('sources.aiAgent') },
     { value: 'phone', label: t('sources.phone') },
-    { value: 'other', label: t('sources.other') }
+    { value: 'other', label: t('sources.other') },
+    { value: 'Expedia', label: 'Expedia' },
+    { value: 'Open Channel', label: 'Open Channel'}
   ];
 
   const statuses = [
