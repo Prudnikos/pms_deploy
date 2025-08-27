@@ -33,11 +33,11 @@ export default function AirbnbIntegrationPanel() {
   const [testBooking, setTestBooking] = useState({
     check_in: '',
     check_out: '',
-    room_type: 'deluxe_double_room',
-    guest_first_name: '',
-    guest_last_name: '',
-    guest_email: '',
-    guest_phone: '',
+    room_type: 'standard_apartment',
+    guest_first_name: 'John',
+    guest_last_name: 'Smith', 
+    guest_email: 'test@airbnb.com',
+    guest_phone: '+1 555 123 4567',
     adults: 2,
     children: 0
   });
@@ -143,10 +143,19 @@ export default function AirbnbIntegrationPanel() {
     addLog('📤 Создаем тестовое Airbnb бронирование...', 'info');
 
     try {
+      // Валидация обязательных полей
+      if (!testBooking.check_in || !testBooking.check_out) {
+        throw new Error('Укажите даты заезда и выезда');
+      }
+      
+      if (!testBooking.guest_first_name || !testBooking.guest_last_name) {
+        throw new Error('Укажите имя и фамилию гостя');
+      }
+
       const bookingData = {
         ...testBooking,
         id: `airbnb-test-${Date.now()}`,
-        room_number: testBooking.room_type === 'deluxe_double_room' ? '101' : '201',
+        room_number: airbnbConfig.room_mapping[testBooking.room_type]?.pms_room_number || 'A1',
         status: 'confirmed',
         channel: 'airbnb',
         source: 'airbnb',
@@ -163,11 +172,11 @@ export default function AirbnbIntegrationPanel() {
       setTestBooking({
         check_in: '',
         check_out: '',
-        room_type: 'deluxe_double_room',
-        guest_first_name: '',
-        guest_last_name: '',
-        guest_email: '',
-        guest_phone: '',
+        room_type: 'standard_apartment',
+        guest_first_name: 'John',
+        guest_last_name: 'Smith',
+        guest_email: 'test@airbnb.com',
+        guest_phone: '+1 555 123 4567',
         adults: 2,
         children: 0
       });
@@ -270,36 +279,26 @@ export default function AirbnbIntegrationPanel() {
       </div>
 
       {/* Статистика комнат */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Deluxe Double Room</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{airbnbConfig.room_mapping.deluxe_double_room.availability_count}</div>
-            <p className="text-xs text-muted-foreground">
-              Номер: {airbnbConfig.room_mapping.deluxe_double_room.pms_room_number}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              ${airbnbConfig.room_mapping.deluxe_double_room.base_price}/ночь
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Deluxe Bungalow</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{airbnbConfig.room_mapping.deluxe_bungalow.availability_count}</div>
-            <p className="text-xs text-muted-foreground">
-              Номер: {airbnbConfig.room_mapping.deluxe_bungalow.pms_room_number}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              ${airbnbConfig.room_mapping.deluxe_bungalow.base_price}/ночь
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-4 gap-4">
+        {Object.entries(airbnbConfig.room_mapping).map(([key, room]) => (
+          <Card key={key}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">{room.airbnb_room_title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{room.availability_count}</div>
+              <p className="text-xs text-muted-foreground">
+                Номер: {room.pms_room_number}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                ${room.base_price}/ночь
+              </p>
+              <p className="text-xs text-muted-foreground">
+                До {room.max_occupancy} гостей
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Табы с функционалом */}
@@ -391,8 +390,11 @@ export default function AirbnbIntegrationPanel() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="deluxe_double_room">Deluxe Double Room</SelectItem>
-                    <SelectItem value="deluxe_bungalow">Deluxe Bungalow with Garden View</SelectItem>
+                    {Object.entries(airbnbConfig.room_mapping).map(([key, room]) => (
+                      <SelectItem key={key} value={key}>
+                        {room.airbnb_room_title} (${room.base_price}/ночь)
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
