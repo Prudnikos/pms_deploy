@@ -12,9 +12,14 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Временно отключаем аутентификацию для тестирования
+  const [user, setUser] = useState({ 
+    id: 'test-user', 
+    email: 'prudnik47@gmail.com' 
+  });
+  const [loading, setLoading] = useState(false);
 
+  /* Временно закомментировано для тестирования
   useEffect(() => {
     // 1. Проверяем текущую сессию при первой загрузке
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -35,6 +40,7 @@ export const AuthProvider = ({ children }) => {
       authListener?.subscription.unsubscribe();
     };
   }, []);
+  */
 
   // --- НАШИ ФУНКЦИИ АУТЕНТИФИКАЦИИ ---
 

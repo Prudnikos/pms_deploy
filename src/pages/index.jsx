@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '@/components/auth/AuthProvider';
 import LoginForm from '@/components/auth/LoginForm'; // Импортируем нашу форму входа
 import Layout from "./Layout.jsx";
 import ChannexIntegration from "./ChannexIntegration";
+import AgodaIntegration from "./AgodaIntegration";
 
 // Импорты твоих страниц
 import Dashboard from "./Dashboard";
@@ -30,6 +31,7 @@ const PAGES = {
     Chat: Chat,
     Integrations: Integrations,
     ChannexIntegration: ChannexIntegration,
+    AgodaIntegration: AgodaIntegration,
     // Новые страницы статистики
     Arrivals: Arrivals,
     Departures: Departures,
@@ -83,6 +85,7 @@ function AppRoutes() {
                 <Route path="/Chat" element={<Chat />} />
                 <Route path="/Integrations" element={<Integrations />} />
                 <Route path="/ChannexIntegration" element={<ChannexIntegration />} />
+                <Route path="/AgodaIntegration" element={<AgodaIntegration />} />
                 
                 {/* Новые роуты для страниц статистики */}
                 <Route path="/Arrivals" element={<Arrivals />} />

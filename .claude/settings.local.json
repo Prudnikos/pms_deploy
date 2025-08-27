@@ -42,7 +42,14 @@
       "Bash(npx playwright install:*)",
       "Bash(npx supabase db dump:*)",
       "Bash(vercel env:*)",
-      "Bash(npx vercel env:*)"
+      "Bash(npx vercel env:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:exely.com)",
+      "WebFetch(domain:www.travelline.ru)",
+      "WebFetch(domain:support.travelline.ru)",
+      "Bash(npx playwright:*)",
+      "Bash(timeout 30 npx playwright open --new-context https://pms.voda.center)",
+      "Bash(timeout 30 npx playwright open https://pms.voda.center)"
     ],
     "deny": [],
     "ask": [],

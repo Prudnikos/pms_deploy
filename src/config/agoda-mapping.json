@@ -1,0 +1,65 @@
+{
+  "agoda_integration": {
+    "property_id": "6ae9708a-cbaa-4134-bf04-29314e842709",
+    "agoda_property_id": "YOUR_AGODA_PROPERTY_ID",
+    
+    "room_mapping": {
+      "double_room": {
+        "agoda_room_id": "762233577",
+        "agoda_room_name": "Двухместный номер",
+        "agoda_rate_plans": ["Room Only", "Room With Breakfast"],
+        "channex_room_type_id": "8df610ce-cabb-429d-98d0-90c33f451d97",
+        "channex_room_type_name": "Standard Room",
+        "channex_rate_plan_id": "8212ad16-0057-496b-8b0b-54d741841852",
+        "pms_room_numbers": ["101", "102", "103"],
+        "max_occupancy": 2,
+        "base_occupancy": 2,
+        "availability_count": 2,
+        "base_price": 100,
+        "currency": "USD"
+      },
+      
+      "bungalow": {
+        "agoda_room_id": "763269496",
+        "agoda_room_name": "Бунгало с видом на сад",
+        "agoda_rate_plans": ["Room Only", "Room With Breakfast"],
+        "channex_room_type_id": "734d5d86-1fe6-44d8-b6c5-4ac9349c4410",
+        "channex_room_type_name": "Deluxe Room",
+        "channex_rate_plan_id": "0661e606-18e5-4ad3-bda0-ade13d29b76b",
+        "pms_room_numbers": ["201", "202", "203", "204", "205", "206"],
+        "max_occupancy": 4,
+        "base_occupancy": 2,
+        "availability_count": 6,
+        "base_price": 200,
+        "currency": "USD"
+      }
+    },
+    
+    "agoda_settings": {
+      "min_nights": 1,
+      "max_nights": 30,
+      "check_in_time": "14:00",
+      "check_out_time": "12:00",
+      "cancellation_policy": "flexible",
+      "instant_booking": true,
+      "advance_booking_window": 365,
+      "preparation_time": 0,
+      "weekend_surcharge": 0,
+      "extra_bed_charge": 25,
+      "child_policy": {
+        "max_children": 2,
+        "child_age_limit": 12,
+        "children_stay_free": false
+      }
+    },
+    
+    "sync_settings": {
+      "sync_prices": true,
+      "sync_availability": true,
+      "sync_restrictions": true,
+      "sync_interval_minutes": 15,
+      "batch_size": 30,
+      "timezone": "Asia/Colombo"
+    }
+  }
+}
