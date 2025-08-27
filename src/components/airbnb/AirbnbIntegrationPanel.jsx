@@ -31,8 +31,8 @@ export default function AirbnbIntegrationPanel() {
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({ total: 0, confirmed: 0, cancelled: 0, revenue: 0 });
   const [testBooking, setTestBooking] = useState({
-    check_in: '',
-    check_out: '',
+    check_in: '2025-08-30',
+    check_out: '2025-09-02',
     room_type: 'standard_apartment',
     guest_first_name: 'John',
     guest_last_name: 'Smith', 
@@ -170,8 +170,8 @@ export default function AirbnbIntegrationPanel() {
       await loadStats();
       
       setTestBooking({
-        check_in: '',
-        check_out: '',
+        check_in: '2025-08-30',
+        check_out: '2025-09-02',
         room_type: 'standard_apartment',
         guest_first_name: 'John',
         guest_last_name: 'Smith',
