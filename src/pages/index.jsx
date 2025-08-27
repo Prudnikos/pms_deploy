@@ -5,6 +5,7 @@ import LoginForm from '@/components/auth/LoginForm'; // Импортируем �
 import Layout from "./Layout.jsx";
 import ChannexIntegration from "./ChannexIntegration";
 import AgodaIntegration from "./AgodaIntegration";
+import AirbnbIntegration from "./AirbnbIntegration";
 
 // Импорты твоих страниц
 import Dashboard from "./Dashboard";
@@ -32,6 +33,7 @@ const PAGES = {
     Integrations: Integrations,
     ChannexIntegration: ChannexIntegration,
     AgodaIntegration: AgodaIntegration,
+    AirbnbIntegration: AirbnbIntegration,
     // Новые страницы статистики
     Arrivals: Arrivals,
     Departures: Departures,
@@ -86,6 +88,7 @@ function AppRoutes() {
                 <Route path="/Integrations" element={<Integrations />} />
                 <Route path="/ChannexIntegration" element={<ChannexIntegration />} />
                 <Route path="/AgodaIntegration" element={<AgodaIntegration />} />
+                <Route path="/AirbnbIntegration" element={<AirbnbIntegration />} />
                 
                 {/* Новые роуты для страниц статистики */}
                 <Route path="/Arrivals" element={<Arrivals />} />

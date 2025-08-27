@@ -1,0 +1,48 @@
+{
+  "airbnb_integration": {
+    "property_id": "6ae9708a-cbaa-4134-bf04-29314e842709",
+    "base_currency": "USD",
+    "room_mapping": {
+      "deluxe_double_room": {
+        "pms_room_number": "101",
+        "pms_room_type": "Standard Room",
+        "channex_room_type_id": "8df610ce-cabb-429d-98d0-90c33f451d97",
+        "channex_rate_plan_id": "8212ad16-0057-496b-8b0b-54d741841852",
+        "airbnb_room_title": "Deluxe Double Room",
+        "base_price": "100",
+        "max_occupancy": 2,
+        "availability_count": 3
+      },
+      "deluxe_bungalow": {
+        "pms_room_number": "201", 
+        "pms_room_type": "Deluxe Room",
+        "channex_room_type_id": "734d5d86-1fe6-44d8-b6c5-4ac9349c4410",
+        "channex_rate_plan_id": "0661e606-18e5-4ad3-bda0-ade13d29b76b",
+        "airbnb_room_title": "Deluxe Bungalow with Garden View", 
+        "base_price": "200",
+        "max_occupancy": 4,
+        "availability_count": 2
+      }
+    },
+    "airbnb_settings": {
+      "check_in_time": "15:00",
+      "check_out_time": "12:00",
+      "min_nights": 1,
+      "max_nights": 30,
+      "advance_booking_days": 365,
+      "preparation_time": 0,
+      "cleaning_fee": 25,
+      "extra_guest_fee": 20,
+      "cancellation_policy": "flexible",
+      "instant_book": true
+    },
+    "webhook_settings": {
+      "endpoint": "https://pms.voda.center/api/channex/webhook",
+      "events": [
+        "booking.created",
+        "booking.updated", 
+        "booking.cancelled"
+      ]
+    }
+  }
+}
