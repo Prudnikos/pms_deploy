@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import airbnbMapping from '@/config/airbnb-mapping.json';
 
 class AirbnbChannexService {
@@ -65,7 +65,7 @@ class AirbnbChannexService {
   convertToChannexFormat(pmsBooking) {
     console.log('🔄 Конвертация PMS → Channex (Airbnb)');
     
-    const roomMapping = this.getRoomMapping(pmsBooking.room_type || 'deluxe_double_room');
+    const roomMapping = this.getRoomMapping(pmsBooking.room_type || 'standard_apartment');
     
     // Вычисляем стоимость по дням
     const checkIn = new Date(pmsBooking.check_in);
@@ -146,12 +146,16 @@ class AirbnbChannexService {
     const room = attrs.rooms?.[0];
     
     // Определяем тип комнаты по room_type_id
-    let roomType = 'deluxe_double_room';
-    let roomMapping = this.airbnbConfig.room_mapping.deluxe_double_room;
+    let roomType = 'standard_apartment';
+    let roomMapping = this.airbnbConfig.room_mapping.standard_apartment;
     
-    if (room?.room_type_id === this.airbnbConfig.room_mapping.deluxe_bungalow.channex_room_type_id) {
-      roomType = 'deluxe_bungalow';
-      roomMapping = this.airbnbConfig.room_mapping.deluxe_bungalow;
+    // Находим соответствующий тип комнаты по room_type_id
+    for (const [type, mapping] of Object.entries(this.airbnbConfig.room_mapping)) {
+      if (room?.room_type_id === mapping.channex_room_type_id) {
+        roomType = type;
+        roomMapping = mapping;
+        break;
+      }
     }
 
     const pmsBooking = {
@@ -329,7 +333,7 @@ class AirbnbChannexService {
    */
   async saveToPMS(pmsBooking) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('bookings')
         .upsert(pmsBooking, { 
           onConflict: 'id',
@@ -355,7 +359,7 @@ class AirbnbChannexService {
    */
   async getAirbnbStats() {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('bookings')
         .select('*')
         .eq('channel', 'airbnb');
