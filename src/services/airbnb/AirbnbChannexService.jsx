@@ -141,9 +141,12 @@ class AirbnbChannexService {
    */
   convertToPMSFormat(channexBooking) {
     console.log('🔄 Конвертация Channex → PMS (Airbnb)');
+    console.log('📋 Channex данные:', channexBooking);
     
     const attrs = channexBooking.attributes;
     const room = attrs.rooms?.[0];
+    
+    console.log('📅 Даты:', { arrival: attrs.arrival_date, departure: attrs.departure_date });
     
     // Определяем тип комнаты по room_type_id
     let roomType = 'standard_apartment';
@@ -164,8 +167,8 @@ class AirbnbChannexService {
       source: 'airbnb',
       ota_reservation_code: attrs.ota_reservation_code,
       
-      check_in: attrs.arrival_date,
-      check_out: attrs.departure_date,
+      check_in: attrs.arrival_date || attrs.checkin_date || null,
+      check_out: attrs.departure_date || attrs.checkout_date || null,
       
       guest_first_name: attrs.customer?.name || 'Guest',
       guest_last_name: attrs.customer?.surname || 'User',
@@ -213,10 +216,12 @@ class AirbnbChannexService {
       
       console.log('✅ Airbnb бронирование создано через Channex:', result.data?.id);
       
-      // Сохраняем в нашу БД
-      if (result.data) {
+      // Сохраняем в нашу БД только если это не тестовое бронирование
+      if (result.data && !pmsBooking.test) {
         const pmsFormatted = this.convertToPMSFormat(result.data);
         await this.saveToPMS(pmsFormatted);
+      } else if (pmsBooking.test) {
+        console.log('🧪 Тестовое бронирование - не сохраняем в PMS БД');
       }
       
       return result;
