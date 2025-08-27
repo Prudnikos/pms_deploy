@@ -10,7 +10,10 @@ class AirbnbChannexService {
     
     console.log('🏠 AirbnbChannexService инициализирован');
     console.log(`📍 Property ID: ${this.propertyId}`);
-    console.log(`🌏 Airbnb комнаты: ${this.airbnbConfig.room_mapping.deluxe_double_room.airbnb_room_title}, ${this.airbnbConfig.room_mapping.deluxe_bungalow.airbnb_room_title}`);
+    
+    // Получаем названия всех Airbnb комнат из конфига
+    const roomTitles = Object.values(this.airbnbConfig.room_mapping).map(room => room.airbnb_room_title);
+    console.log(`🌏 Airbnb комнаты: ${roomTitles.join(', ')}`);
   }
 
   /**

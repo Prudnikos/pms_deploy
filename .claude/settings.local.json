@@ -52,12 +52,19 @@
       "Bash(timeout 30 npx playwright open https://pms.voda.center)",
       "Bash(lsof:*)",
       "Read(/c:\\Users\\Кос\\Downloads/**)",
-      "Read(/c:\\Users\\Кос\\Downloads/**)"
+      "Read(/c:\\Users\\Кос\\Downloads/**)",
+      "Read(/c:\\Users\\Кос\\Downloads/**)",
+      "Read(C:\\Users\\Кос\\AppData\\Roaming/**)",
+      "Read(C:\\Users\\Кос/**)",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_evaluate",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
-      "C:\\c"
+      "C:\\c",
+      "C:\\Users\\Кос\\AppData\\Roaming"
     ]
   }
 }
