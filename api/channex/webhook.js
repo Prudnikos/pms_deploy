@@ -33,34 +33,38 @@ export default async function handler(req, res) {
     timestamp: new Date().toISOString()
   });
 
-  // Проверяем авторизацию webhook
-  const webhookSecret = process.env.VITE_CHANNEX_WEBHOOK_SECRET;
-  if (webhookSecret && webhookSecret !== 'your-webhook-secret') {
-    const authHeader = req.headers['authorization'] || req.headers['x-webhook-token'] || req.headers['x-channex-token'];
-    if (!authHeader) {
-      console.log('⚠️  Webhook получен без заголовка авторизации (staging режим - продолжаем)');
-    } else if (authHeader !== `Bearer ${webhookSecret}` && authHeader !== webhookSecret) {
-      console.log('❌ Неверный токен авторизации webhook');
+  // Упрощенная проверка авторизации Channex webhook
+  const expectedSecret = 'hotel_pms_webhook_secret_2024';
+  const authHeader = req.headers['authorization'];
+  
+  if (authHeader) {
+    const receivedSecret = authHeader.replace('Bearer ', '');
+    if (receivedSecret !== expectedSecret) {
+      console.log('❌ Неверный токен авторизации webhook:', receivedSecret);
       return res.status(401).json({ error: 'Invalid authorization token' });
     } else {
       console.log('✅ Авторизация webhook проверена успешно');
     }
+  } else {
+    console.log('⚠️ Webhook получен без авторизации (разрешаем для тестирования)');
   }
 
   try {
     const webhookData = req.body;
     
-    // Извлекаем данные из webhook
-    const eventType = webhookData.type || 'unknown';
-    const eventId = webhookData.id || '';
-    const objectType = webhookData.object_type || '';
-    const objectId = webhookData.object_id || '';
+    // Правильный формат Channex webhook
+    const eventType = webhookData.event || 'unknown';
+    const eventId = `channex-${Date.now()}`;
+    const objectType = eventType.includes('booking') ? 'booking' : 'other';
+    const objectId = webhookData.payload?.booking_id || webhookData.payload?.revision_id || 'unknown';
     
-    console.log('📋 Обработка webhook:', {
+    console.log('📋 Обработка Channex webhook:', {
       eventType,
       eventId,
       objectType,
-      objectId
+      objectId,
+      propertyId: webhookData.property_id,
+      timestamp: webhookData.timestamp
     });
 
     // Сохраняем webhook в БД для отладки
@@ -86,13 +90,18 @@ export default async function handler(req, res) {
       console.error('❌ Ошибка подключения к БД:', dbError);
     }
 
-    // Обрабатываем разные типы событий
-    if (objectType === 'booking') {
-      await handleBookingEvent(eventType, objectId, webhookData);
-    } else if (objectType === 'booking_revision') {
-      await handleBookingRevisionEvent(eventType, objectId, webhookData);
+    // Обрабатываем разные типы событий (правильный формат Channex)
+    if (eventType === 'booking' || eventType.includes('booking')) {
+      const bookingId = webhookData.payload?.booking_id;
+      if (bookingId) {
+        await handleBookingEvent(eventType, bookingId, webhookData);
+      } else {
+        console.log('⚠️ Booking event без booking_id:', webhookData);
+      }
+    } else if (eventType === 'ari') {
+      console.log('📅 ARI update event:', webhookData.payload);
     } else {
-      console.log('ℹ️ Неизвестный тип объекта:', objectType);
+      console.log('ℹ️ Неизвестный тип события:', eventType);
     }
 
     // Отмечаем webhook как обработанный

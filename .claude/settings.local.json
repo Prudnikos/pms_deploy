@@ -58,7 +58,9 @@
       "Read(C:\\Users\\Кос/**)",
       "mcp__playwright__browser_console_messages",
       "mcp__playwright__browser_evaluate",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs"
     ],
     "deny": [],
     "ask": [],
