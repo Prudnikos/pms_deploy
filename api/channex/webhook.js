@@ -3,11 +3,11 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Инициализация Supabase клиента
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || 'https://qflncrldkqhmmrnepdpk.supabase.co',
-  process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmbG5jcmxka3FobW1ybmVwZHBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE4NTc2NDMsImV4cCI6MjA0NzQzMzY0M30.8oFOjJQOZT7eFwHPsKV-JdXlC0KfQgUKFw7lIRl3zEc'
-);
+// Инициализация Supabase клиента (актуальные ключи)
+const supabaseUrl = 'https://zbhvwxpvlxqxadqzshfc.supabase.co';
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiaHZ3eHB2bHhxeGFkcXpzaGZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTkyNTM3NCwiZXhwIjoyMDY3NTAxMzc0fQ.0kO3vG1OXNS05NPgm7MmcbkdMuLSG49GKwkCP4979tc';
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export default async function handler(req, res) {
   // CORS заголовки
@@ -262,14 +262,27 @@ async function syncBookingToPMS(channexBooking, eventType) {
   console.log('📥 Синхронизация бронирования в PMS:', channexBooking.id);
 
   try {
-    // Маппим данные из Channex в формат PMS
-    const pmsBooking = mapChannexToPMSBooking(channexBooking);
+    // Определяем канал по ota_name
+    const otaName = channexBooking.attributes?.ota_name;
+    console.log('📋 OTA канал:', otaName);
 
-    // Проверяем, существует ли уже это бронирование
+    let pmsBooking;
+    
+    // Используем соответствующий сервис для конвертации
+    if (otaName === 'Airbnb') {
+      // Импортируем AirbnbChannexService динамически
+      const { default: AirbnbChannexService } = await import('../../src/services/airbnb/AirbnbChannexService.jsx');
+      pmsBooking = AirbnbChannexService.convertToPMSFormat(channexBooking);
+    } else {
+      // Используем общий маппинг для других каналов
+      pmsBooking = mapChannexToPMSBooking(channexBooking);
+    }
+
+    // Проверяем, существует ли уже это бронирование (по external ID)
     const { data: existingBooking } = await supabase
       .from('bookings')
       .select('id')
-      .eq('external_booking_id', channexBooking.id)
+      .eq('ota_reservation_code', channexBooking.attributes?.ota_reservation_code)
       .single();
 
     if (existingBooking) {
