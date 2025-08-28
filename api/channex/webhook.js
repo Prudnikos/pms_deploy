@@ -52,19 +52,22 @@ export default async function handler(req, res) {
   try {
     const webhookData = req.body;
     
-    // Реальный формат Channex webhook (из логов)
-    const eventType = webhookData.event || 'booking'; // Default to booking
+    // Реальный формат Channex webhook (из ngrok тестирования)
+    // Формат: {"timestamp": "2025-08-28T04:51:59.515056Z", "event": "test", "user_id": null, "property_id": "property_id"}
+    const eventType = webhookData.event || 'booking'; // event приходит напрямую
     const eventId = `channex-${Date.now()}`;
     const objectType = 'booking';
-    const objectId = webhookData.booking_id || webhookData.revision_id || 'unknown';
+    const objectId = webhookData.booking_id || webhookData.revision_id || `${webhookData.property_id}-${Date.now()}`;
     
-    console.log('📋 Обработка Channex webhook:', {
+    console.log('📋 Обработка Channex webhook (реальный формат):', {
       eventType,
       eventId,
       objectType,
       objectId,
       propertyId: webhookData.property_id,
-      timestamp: webhookData.timestamp
+      userId: webhookData.user_id,
+      timestamp: webhookData.timestamp,
+      rawEvent: webhookData.event
     });
 
     // Сохраняем webhook в БД для отладки
@@ -94,6 +97,8 @@ export default async function handler(req, res) {
     const bookingId = webhookData.booking_id;
     if (bookingId) {
       await handleBookingEvent(eventType, bookingId, webhookData);
+    } else if (eventType === 'test') {
+      console.log('🧪 Получен тестовый webhook от Channex - все работает!');
     } else {
       console.log('⚠️ Webhook без booking_id:', webhookData);
     }
@@ -159,11 +164,12 @@ async function handleBookingEvent(eventType, bookingId, webhookData) {
       await syncBookingToPMS(booking, eventType);
       console.log(`✅ Бронирование ${bookingId} синхронизировано`);
     } else {
-      console.warn(`⚠️ Не удалось получить данные бронирования ${bookingId}`);
+      console.warn(`⚠️ Не удалось получить данные бронирования ${bookingId} - возможно тестовое`);
     }
 
   } catch (error) {
     console.error(`❌ Ошибка обработки booking event:`, error);
+    // НЕ пробрасываем ошибку дальше - webhook должен вернуть 200
   }
 }
 
