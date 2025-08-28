@@ -52,11 +52,11 @@ export default async function handler(req, res) {
   try {
     const webhookData = req.body;
     
-    // Правильный формат Channex webhook
-    const eventType = webhookData.event || 'unknown';
+    // Реальный формат Channex webhook (из логов)
+    const eventType = webhookData.event || 'booking'; // Default to booking
     const eventId = `channex-${Date.now()}`;
-    const objectType = eventType.includes('booking') ? 'booking' : 'other';
-    const objectId = webhookData.payload?.booking_id || webhookData.payload?.revision_id || 'unknown';
+    const objectType = 'booking';
+    const objectId = webhookData.booking_id || webhookData.revision_id || 'unknown';
     
     console.log('📋 Обработка Channex webhook:', {
       eventType,
@@ -90,18 +90,12 @@ export default async function handler(req, res) {
       console.error('❌ Ошибка подключения к БД:', dbError);
     }
 
-    // Обрабатываем разные типы событий (правильный формат Channex)
-    if (eventType === 'booking' || eventType.includes('booking')) {
-      const bookingId = webhookData.payload?.booking_id;
-      if (bookingId) {
-        await handleBookingEvent(eventType, bookingId, webhookData);
-      } else {
-        console.log('⚠️ Booking event без booking_id:', webhookData);
-      }
-    } else if (eventType === 'ari') {
-      console.log('📅 ARI update event:', webhookData.payload);
+    // Обрабатываем booking event (реальный формат Channex)
+    const bookingId = webhookData.booking_id;
+    if (bookingId) {
+      await handleBookingEvent(eventType, bookingId, webhookData);
     } else {
-      console.log('ℹ️ Неизвестный тип события:', eventType);
+      console.log('⚠️ Webhook без booking_id:', webhookData);
     }
 
     // Отмечаем webhook как обработанный
