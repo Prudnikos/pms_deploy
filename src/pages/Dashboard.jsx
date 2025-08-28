@@ -12,6 +12,7 @@ import NewBookingModal from '../components/dashboard/NewBookingModal';
 import DashboardStatistics from '../components/dashboard/DashboardStatistics';
 import ReportsModal from '../components/dashboard/ReportsModal';
 import { getBookingsForRange, getRooms, getServices } from '@/components/integrations/Supabase';
+import { supabase } from '@/lib/supabase'; // Импортируем supabase клиент для realtime подписки
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useTranslation } from '@/hooks/useTranslation';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -60,9 +61,21 @@ export default function Dashboard() {
       console.log('📊 Loaded bookings with services:', bookingsWithFullData.map(b => ({
         id: b.id.substring(0, 8),
         guest: b.guests?.full_name,
+        status: b.status,
+        room_id: b.room_id,
         services: b.booking_services?.length || 0
       })));
       
+      // Логируем общую статистику загруженных бронирований
+      console.log('📊 Статистика загруженных бронирований:', {
+        total: bookingsWithFullData.length,
+        byStatus: bookingsWithFullData.reduce((acc, b) => {
+          acc[b.status] = (acc[b.status] || 0) + 1;
+          return acc;
+        }, {})
+      });
+      
+      console.log(`📈 Total bookings loaded: ${bookingsWithFullData.length}`);
       setBookings(bookingsWithFullData);
     } catch (err) {
       console.error('❌ Error loading bookings:', err);
@@ -101,6 +114,53 @@ export default function Dashboard() {
     };
     fetchStaticData();
   }, [t]);
+
+  // 🔴 REALTIME ПОДПИСКА на изменения бронирований
+  useEffect(() => {
+    console.log('🔔 Настраиваем Realtime подписку на изменения бронирований');
+    
+    // Создаем подписку на все изменения в таблице bookings
+    const bookingsSubscription = supabase
+      .channel('bookings_changes')
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', // Слушаем все события: INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'bookings'
+        },
+        (payload) => {
+          console.log('🔔 Получено изменение в таблице bookings:', payload);
+          
+          // Определяем тип события и обновляем данные
+          const eventType = payload.eventType;
+          const booking = payload.new || payload.old;
+          
+          if (eventType === 'INSERT') {
+            console.log('➕ Добавлено новое бронирование:', booking?.id);
+          } else if (eventType === 'UPDATE') {
+            console.log('📝 Обновлено бронирование:', booking?.id);
+          } else if (eventType === 'DELETE') {
+            console.log('🗑️ Удалено бронирование:', booking?.id);
+          }
+          
+          // Обновляем данные для текущего месяца
+          const monthStart = startOfMonth(currentMonth);
+          const monthEnd = endOfMonth(currentMonth);
+          console.log('🔄 Автообновление данных после realtime события');
+          fetchDataForRange(monthStart, monthEnd);
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Статус Realtime подписки:', status);
+      });
+
+    // Очищаем подписку при размонтировании компонента
+    return () => {
+      console.log('🔌 Отключаем Realtime подписку');
+      supabase.removeChannel(bookingsSubscription);
+    };
+  }, [currentMonth, fetchDataForRange]);
 
   // Обработчик изменения цены через Channex
   const handlePriceChange = async (roomId, date, newPrice) => {
@@ -161,12 +221,15 @@ export default function Dashboard() {
   };
 
   const handleBookingSaved = useCallback(() => {
-    console.log('📝 Booking saved, refreshing data...');
+    console.log('📝 Booking saved - закрываем модальное окно');
+    
+    // Закрываем модальные окна
     setShowNewBookingModal(false);
     setSelectedCell(null);
     setEditingBooking(null);
     
-    // Обновляем данные после сохранения брони
+    // Принудительно обновляем данные, поскольку Realtime может не работать
+    console.log('🔄 Принудительно обновляем данные после изменения бронирования');
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     fetchDataForRange(monthStart, monthEnd);

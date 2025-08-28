@@ -555,7 +555,7 @@ class ChannexService {
           }
 
           // Конвертируем данные Channex в формат PMS
-          const pmsBooking = this.convertChannexToPMSBooking(channexBooking);
+          const pmsBooking = await this.convertChannexToPMSBooking(channexBooking);
           
           // Вставляем в базу данных PMS
           const { error: insertError } = await supabase
@@ -586,7 +586,7 @@ class ChannexService {
   }
 
   // --- КОНВЕРТАЦИЯ CHANNEX → PMS ---
-  convertChannexToPMSBooking(channexBooking) {
+  async convertChannexToPMSBooking(channexBooking) {
     const attrs = channexBooking.attributes;
     
     // Извлекаем данные о комнате из первой комнаты
@@ -606,6 +606,26 @@ class ChannexService {
       }
     }
 
+    // ИСПРАВЛЕНИЕ: Находим реальный room_id из базы данных
+    let pmsRoomId = null;
+    try {
+      const { data: pmsRooms, error } = await supabase
+        .from('rooms')
+        .select('id, room_number')
+        .eq('room_number', roomNumber);
+      
+      if (error) {
+        console.error('❌ Ошибка поиска комнаты:', error);
+      } else if (pmsRooms && pmsRooms.length > 0) {
+        pmsRoomId = pmsRooms[0].id;
+        console.log(`✅ Найдена комната в PMS: ${roomNumber} → ID ${pmsRoomId}`);
+      } else {
+        console.warn(`⚠️ Комната ${roomNumber} не найдена в PMS. Создаем бронирование без привязки к комнате.`);
+      }
+    } catch (dbError) {
+      console.error('❌ Ошибка при поиске комнаты в базе:', dbError);
+    }
+
     // Вычисляем общую сумму из days
     let totalAmount = 0;
     if (firstRoom.days) {
@@ -615,7 +635,7 @@ class ChannexService {
     return {
       id: `channex-${channexBooking.id}`,
       external_booking_id: channexBooking.id,
-      room_id: `room-${roomNumber}`,
+      room_id: pmsRoomId, // Используем реальный ID комнаты или null
       
       // Даты
       check_in: attrs.arrival_date,
@@ -675,6 +695,273 @@ class ChannexService {
     };
     
     return reverseMapping[otaName] || 'direct';
+  }
+
+  // --- ОБРАБОТКА WEBHOOK СОБЫТИЙ ---
+  async handleWebhook(webhookData) {
+    console.log('🔔 Обработка webhook события в ChannexService:', webhookData.event);
+    
+    try {
+      const eventType = webhookData.event || 'booking';
+      const bookingId = webhookData.booking_id;
+      const revisionId = webhookData.revision_id;
+      
+      console.log('📋 Данные webhook:', {
+        eventType,
+        bookingId,
+        revisionId,
+        propertyId: webhookData.property_id,
+        timestamp: webhookData.timestamp
+      });
+
+      // Обрабатываем разные типы событий
+      switch (eventType) {
+        case 'test':
+          console.log('🧪 Получен тестовый webhook - все работает!');
+          return { success: true, message: 'Test webhook processed' };
+
+        case 'booking_created':
+        case 'booking_updated':
+        case 'booking_cancelled':
+          if (bookingId) {
+            return await this.handleBookingWebhookEvent(eventType, bookingId, webhookData);
+          }
+          break;
+
+        case 'booking_revision_created':
+        case 'booking_revision_updated':
+          if (revisionId) {
+            return await this.handleBookingRevisionWebhookEvent(eventType, revisionId, webhookData);
+          }
+          break;
+
+        default:
+          console.log(`ℹ️ Неизвестный тип события: ${eventType}`);
+          return { success: true, message: `Unknown event type: ${eventType}` };
+      }
+
+      return { success: true, message: 'Webhook processed' };
+
+    } catch (error) {
+      console.error('❌ Ошибка обработки webhook:', error);
+      throw error;
+    }
+  }
+
+  // --- ОБРАБОТКА WEBHOOK СОБЫТИЙ БРОНИРОВАНИЙ ---
+  async handleBookingWebhookEvent(eventType, bookingId, webhookData) {
+    console.log(`📋 Обработка booking webhook: ${eventType} для ID ${bookingId}`);
+    
+    try {
+      // Получаем полные данные бронирования от Channex API
+      const response = await this.apiRequest(`/bookings/${bookingId}`, 'GET');
+      
+      if (response && response.data) {
+        const channexBooking = response.data;
+        await this.syncChannexBookingToPMS(channexBooking, eventType);
+        console.log(`✅ Бронирование ${bookingId} синхронизировано в PMS`);
+        
+        return { 
+          success: true, 
+          message: `Booking ${bookingId} synchronized`,
+          booking_id: bookingId
+        };
+      } else {
+        console.warn(`⚠️ Не удалось получить данные бронирования ${bookingId} - возможно тестовое`);
+        return { 
+          success: true, 
+          message: `Test booking ${bookingId} - no sync needed` 
+        };
+      }
+
+    } catch (error) {
+      console.error(`❌ Ошибка обработки booking webhook:`, error);
+      // НЕ пробрасываем ошибку дальше - webhook должен вернуть 200
+      return { 
+        success: false, 
+        message: `Error processing booking ${bookingId}: ${error.message}` 
+      };
+    }
+  }
+
+  // --- ОБРАБОТКА WEBHOOK СОБЫТИЙ РЕВИЗИЙ БРОНИРОВАНИЙ ---
+  async handleBookingRevisionWebhookEvent(eventType, revisionId, webhookData) {
+    console.log(`📝 Обработка booking revision webhook: ${eventType} для revision ${revisionId}`);
+    
+    try {
+      // Для ревизий можем использовать данные из webhook или запросить полную информацию
+      if (webhookData.data && webhookData.data.booking) {
+        await this.syncChannexBookingToPMS(webhookData.data.booking, eventType);
+        
+        return { 
+          success: true, 
+          message: `Booking revision ${revisionId} processed`,
+          revision_id: revisionId
+        };
+      } else {
+        // Запрашиваем полные данные ревизии
+        const response = await this.apiRequest(`/booking_revisions/${revisionId}`, 'GET');
+        if (response && response.data && response.data.booking) {
+          await this.syncChannexBookingToPMS(response.data.booking, eventType);
+          
+          return { 
+            success: true, 
+            message: `Booking revision ${revisionId} synchronized`,
+            revision_id: revisionId
+          };
+        }
+      }
+
+      return { 
+        success: true, 
+        message: `Revision ${revisionId} processed - no action needed` 
+      };
+
+    } catch (error) {
+      console.error(`❌ Ошибка обработки booking revision webhook:`, error);
+      return { 
+        success: false, 
+        message: `Error processing revision ${revisionId}: ${error.message}` 
+      };
+    }
+  }
+
+  // --- СИНХРОНИЗАЦИЯ CHANNEX БРОНИРОВАНИЯ В PMS ---
+  async syncChannexBookingToPMS(channexBooking, eventType) {
+    console.log('📥 Синхронизация Channex бронирования в PMS:', channexBooking.id);
+
+    try {
+      // Определяем канал по ota_name
+      const otaName = channexBooking.attributes?.ota_name;
+      console.log('📋 OTA канал:', otaName);
+
+      let pmsBooking;
+      
+      // Используем соответствующий сервис для конвертации
+      if (otaName === 'Airbnb') {
+        // Динамический импорт AirbnbChannexService
+        try {
+          const { default: AirbnbChannexService } = await import('../airbnb/AirbnbChannexService.jsx');
+          pmsBooking = AirbnbChannexService.convertToPMSFormat(channexBooking);
+        } catch (importError) {
+          console.warn('⚠️ AirbnbChannexService не найден, используем общий маппинг');
+          pmsBooking = await this.convertChannexToPMSBooking(channexBooking);
+        }
+      } else {
+        // Используем общий маппинг для других каналов
+        pmsBooking = await this.convertChannexToPMSBooking(channexBooking);
+      }
+
+      // Проверяем доступность комнаты перед созданием/обновлением
+      const roomAvailable = await this.checkRoomAvailability(
+        pmsBooking.room_id,
+        pmsBooking.check_in,
+        pmsBooking.check_out,
+        channexBooking.id // исключаем текущее бронирование при обновлении
+      );
+
+      if (!roomAvailable && eventType === 'booking_created') {
+        console.error(`❌ Комната ${pmsBooking.room_id} недоступна на даты ${pmsBooking.check_in} - ${pmsBooking.check_out}`);
+        
+        // Логируем конфликт в базе
+        await supabase
+          .from('booking_conflicts')
+          .insert({
+            channex_booking_id: channexBooking.id,
+            room_id: pmsBooking.room_id,
+            check_in: pmsBooking.check_in,
+            check_out: pmsBooking.check_out,
+            conflict_reason: 'room_unavailable',
+            created_at: new Date().toISOString()
+          });
+
+        throw new Error(`Room ${pmsBooking.room_id} is not available for dates ${pmsBooking.check_in} - ${pmsBooking.check_out}`);
+      }
+
+      // Проверяем, существует ли уже это бронирование (по external ID или ota_reservation_code)
+      const { data: existingBooking } = await supabase
+        .from('bookings')
+        .select('id, room_id')
+        .or(`external_booking_id.eq.${channexBooking.id},ota_reservation_code.eq.${channexBooking.attributes?.ota_reservation_code}`)
+        .single();
+
+      if (existingBooking) {
+        // Обновляем существующее бронирование
+        const { error } = await supabase
+          .from('bookings')
+          .update({
+            ...pmsBooking,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingBooking.id);
+
+        if (error) {
+          console.error('❌ Ошибка обновления бронирования:', error);
+          throw error;
+        } else {
+          console.log(`✅ Бронирование ${channexBooking.id} обновлено в PMS`);
+        }
+
+      } else {
+        // Создаем новое бронирование
+        const { error } = await supabase
+          .from('bookings')
+          .insert({
+            ...pmsBooking,
+            created_at: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error('❌ Ошибка создания бронирования:', error);
+          throw error;
+        } else {
+          console.log(`✅ Бронирование ${channexBooking.id} создано в PMS`);
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ Ошибка синхронизации Channex бронирования:', error);
+      throw error;
+    }
+  }
+
+  // --- ПРОВЕРКА ДОСТУПНОСТИ КОМНАТЫ ---
+  async checkRoomAvailability(roomId, checkIn, checkOut, excludeBookingId = null) {
+    console.log(`🔍 Проверка доступности комнаты ${roomId} на даты ${checkIn} - ${checkOut}`);
+    
+    try {
+      // Проверяем пересечения с существующими бронированиями
+      let query = supabase
+        .from('bookings')
+        .select('id, external_booking_id, check_in, check_out, status')
+        .eq('room_id', roomId)
+        .neq('status', 'cancelled')
+        .or(`and(check_in.lte.${checkOut},check_out.gt.${checkIn})`);
+
+      // Исключаем текущее бронирование при обновлении
+      if (excludeBookingId) {
+        query = query.neq('external_booking_id', excludeBookingId);
+      }
+
+      const { data: conflictingBookings, error } = await query;
+      
+      if (error) {
+        console.error('❌ Ошибка проверки доступности комнаты:', error);
+        return false;
+      }
+
+      if (conflictingBookings && conflictingBookings.length > 0) {
+        console.warn(`⚠️ Найдены конфликтующие бронирования:`, conflictingBookings);
+        return false;
+      }
+
+      console.log(`✅ Комната ${roomId} доступна на запрашиваемые даты`);
+      return true;
+
+    } catch (error) {
+      console.error('❌ Ошибка при проверке доступности комнаты:', error);
+      return false;
+    }
   }
 }
 

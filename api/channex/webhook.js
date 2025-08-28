@@ -93,14 +93,18 @@ export default async function handler(req, res) {
       console.error('❌ Ошибка подключения к БД:', dbError);
     }
 
-    // Обрабатываем booking event (реальный формат Channex)
-    const bookingId = webhookData.booking_id;
-    if (bookingId) {
-      await handleBookingEvent(eventType, bookingId, webhookData);
-    } else if (eventType === 'test') {
-      console.log('🧪 Получен тестовый webhook от Channex - все работает!');
-    } else {
-      console.log('⚠️ Webhook без booking_id:', webhookData);
+    // НОВАЯ ЛОГИКА: Используем ChannexService для обработки webhook
+    try {
+      // Динамический импорт ChannexService
+      const { default: channexService } = await import('../../src/services/channex/ChannexService.jsx');
+      const result = await channexService.handleWebhook(webhookData);
+      
+      console.log('✅ ChannexService обработал webhook:', result);
+      
+    } catch (serviceError) {
+      console.error('❌ Ошибка ChannexService:', serviceError);
+      // Fallback на старую логику при ошибке сервиса
+      await handleBookingEventFallback(eventType, webhookData.booking_id, webhookData);
     }
 
     // Отмечаем webhook как обработанный
@@ -150,9 +154,9 @@ export default async function handler(req, res) {
 }
 
 /**
- * Обработка событий бронирований
+ * Обработка событий бронирований (FALLBACK версия)
  */
-async function handleBookingEvent(eventType, bookingId, webhookData) {
+async function handleBookingEventFallback(eventType, bookingId, webhookData) {
   console.log(`📋 Обработка booking event: ${eventType} для ID ${bookingId}`);
 
   try {

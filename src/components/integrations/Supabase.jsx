@@ -37,6 +37,8 @@ export const getBookingsForRange = async (startDate, endDate) => {
   const start = format(startDate, 'yyyy-MM-dd');
   const end = format(endDate, 'yyyy-MM-dd');
 
+  console.log('🔍 getBookingsForRange: Загружаем бронирования для диапазона', { start, end });
+
   return handleSupabaseQuery(
     supabase
       .from('bookings')
@@ -49,6 +51,8 @@ export const getBookingsForRange = async (startDate, endDate) => {
       // Логика для получения всех броней, которые ПЕРЕСЕКАЮТСЯ с диапазоном
       .lt('check_in', end)   // Дата заезда должна быть ДО конца диапазона
       .gt('check_out', start) // Дата выезда должна быть ПОСЛЕ начала диапазона
+      // Сортируем по дате создания
+      .order('created_at', { ascending: false })
   );
 };
 
@@ -210,12 +214,22 @@ export const updateGuest = async (id, updates) => {
 
 // Удаление бронирования
 export const deleteBooking = async (id) => {
-  return handleSupabaseQuery(
+  console.log('🗑️ Supabase: deleteBooking called with id:', id);
+  
+  const result = await handleSupabaseQuery(
     supabase
       .from('bookings')
       .delete()
       .eq('id', id)
   );
+  
+  if (result.error) {
+    console.error('❌ Supabase: deleteBooking failed:', result.error);
+  } else {
+    console.log('✅ Supabase: deleteBooking successful for id:', id);
+  }
+  
+  return result;
 };
 
 // --- ФУНКЦИИ ДЛЯ РАБОТЫ С УСЛУГАМИ ---

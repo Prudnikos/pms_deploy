@@ -231,14 +231,25 @@ export default function NewBookingModal({ bookingToEdit, selectedCell, allBookin
 
   const handleDelete = async () => {
     if (!window.confirm(t('messages.confirmDelete'))) return;
+    
+    console.log('🗑️ Starting delete process for booking:', {
+      id: bookingToEdit.id,
+      guest: bookingToEdit.guests?.full_name,
+      room_id: bookingToEdit.room_id,
+      status: bookingToEdit.status
+    });
+    
     setLoading(true);
     setError('');
     try {
-      console.log('🗑️ Deleting booking:', bookingToEdit.id);
+      console.log('📡 Calling deleteBooking API...');
       const { error: deleteError } = await deleteBooking(bookingToEdit.id);
       if (deleteError) throw deleteError;
-      console.log('✅ Booking deleted successfully');
+      
+      console.log('✅ Booking deleted successfully, calling onBookingSaved...');
       onBookingSaved();
+      
+      console.log('✅ Delete process completed successfully');
     } catch (err) {
       console.error('❌ Error deleting booking:', err);
       setError(err.message);

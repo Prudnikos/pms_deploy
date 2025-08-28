@@ -60,7 +60,16 @@
       "mcp__playwright__browser_evaluate",
       "Bash(git log:*)",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs"
+      "mcp__context7__get-library-docs",
+      "Bash(where ngrok)",
+      "Bash(ngrok:*)",
+      "Bash(vercel logs:*)",
+      "Bash(npx vercel logs:*)",
+      "Bash(pkill:*)",
+      "mcp__playwright__browser_handle_dialog",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_select_option",
+      "Bash(npx vercel:*)"
     ],
     "deny": [],
     "ask": [],
