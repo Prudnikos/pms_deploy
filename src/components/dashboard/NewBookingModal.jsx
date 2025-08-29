@@ -112,13 +112,23 @@ export default function NewBookingModal({ bookingToEdit, selectedCell, allBookin
     let accommodationTotal;
     if (bookingToEdit && bookingToEdit.accommodation_total !== null && bookingToEdit.accommodation_total !== undefined) {
       // Используем сохраненную стоимость проживания из брони
-      accommodationTotal = bookingToEdit.accommodation_total;
+      // Проверяем, не сохранена ли цена с лишними нулями
+      const savedAccommodation = parseFloat(bookingToEdit.accommodation_total);
+      // Если цена выглядит слишком большой (больше 10000), возможно она в центах
+      if (savedAccommodation > 10000) {
+        accommodationTotal = savedAccommodation / 100;
+      } else {
+        accommodationTotal = savedAccommodation;
+      }
+      console.log('💰 Использую accommodation_total из брони:', bookingToEdit.accommodation_total, '→', accommodationTotal);
     } else if (bookingToEdit && bookingToEdit.total_amount && bookingToEdit.services_total !== undefined) {
       // Вычисляем accommodation_total из total_amount минус services
       accommodationTotal = bookingToEdit.total_amount - (bookingToEdit.services_total || 0);
+      console.log('💰 Вычисляю accommodation_total:', bookingToEdit.total_amount, '-', bookingToEdit.services_total, '=', accommodationTotal);
     } else {
       // Для новой брони используем price_per_night из таблицы rooms
       accommodationTotal = nights * pricePerNight;
+      console.log('💰 Новая бронь: nights:', nights, '× price:', pricePerNight, '=', accommodationTotal);
     }
     
     // Считаем общую стоимость услуг из корзины и уже заказанных
