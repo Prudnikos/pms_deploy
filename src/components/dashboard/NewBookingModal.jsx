@@ -108,7 +108,18 @@ export default function NewBookingModal({ bookingToEdit, selectedCell, allBookin
       ? differenceInCalendarDays(checkOutDate, checkInDate) 
       : 0;
 
-    const accommodationTotal = nights * pricePerNight;
+    // Для редактирования существующей брони используем данные из booking
+    let accommodationTotal;
+    if (booking && booking.accommodation_total !== null && booking.accommodation_total !== undefined) {
+      // Используем сохраненную стоимость проживания из брони
+      accommodationTotal = booking.accommodation_total;
+    } else if (booking && booking.total_amount && booking.services_total !== undefined) {
+      // Вычисляем accommodation_total из total_amount минус services
+      accommodationTotal = booking.total_amount - (booking.services_total || 0);
+    } else {
+      // Для новой брони используем price_per_night из таблицы rooms
+      accommodationTotal = nights * pricePerNight;
+    }
     
     // Считаем общую стоимость услуг из корзины и уже заказанных
     const cartServicesTotal = servicesInCart.reduce((sum, s) => sum + (s.price_at_booking || 0) * s.quantity, 0);

@@ -163,7 +163,14 @@ function convertChannexToAirbnbRooms(roomTypes, ratePlans, availabilityData, use
         console.log(`📊 ${airbnbId}: минимальная availability за период = ${minAvailability}`);
       } else {
         console.log(`⚠️ ${airbnbId}: нет данных availability для rate_plan ${config.channex_rate_plan_id}`);
-        minAvailability = 0;
+        // Fallback на config availability_count если нет данных в API
+        if (config.availability_count && config.availability_count > 0) {
+          minAvailability = config.availability_count;
+          hasAvailability = true;
+          console.log(`   📊 Используем fallback из конфига: ${config.availability_count}`);
+        } else {
+          minAvailability = 0;
+        }
       }
     }
     
