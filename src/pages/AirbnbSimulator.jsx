@@ -114,6 +114,7 @@ async function getChannexAvailability(checkInDate, checkOutDate) {
 function convertChannexToAirbnbRooms(roomTypes, ratePlans, availabilityData, useAvailabilityData) {
   console.log('🔄 Конвертация Channex → Airbnb формат...');
   console.log('📊 Входные данные:', { roomTypes: roomTypes.length, ratePlans: ratePlans.length, availability: Object.keys(availabilityData).length });
+  console.log('📊 Availability данные по rate plans:', Object.keys(availabilityData));
   
   const airbnbRooms = [];
   const mapping = airbnbMapping.airbnb_integration.room_mapping;
@@ -170,6 +171,7 @@ function convertChannexToAirbnbRooms(roomTypes, ratePlans, availabilityData, use
           console.log(`   📊 Используем fallback из конфига: ${config.availability_count}`);
         } else {
           minAvailability = 0;
+          console.log(`   ❌ Нет fallback данных в конфиге`);
         }
       }
     }

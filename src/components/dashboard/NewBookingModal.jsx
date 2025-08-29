@@ -108,14 +108,14 @@ export default function NewBookingModal({ bookingToEdit, selectedCell, allBookin
       ? differenceInCalendarDays(checkOutDate, checkInDate) 
       : 0;
 
-    // Для редактирования существующей брони используем данные из booking
+    // Для редактирования существующей брони используем данные из bookingToEdit
     let accommodationTotal;
-    if (booking && booking.accommodation_total !== null && booking.accommodation_total !== undefined) {
+    if (bookingToEdit && bookingToEdit.accommodation_total !== null && bookingToEdit.accommodation_total !== undefined) {
       // Используем сохраненную стоимость проживания из брони
-      accommodationTotal = booking.accommodation_total;
-    } else if (booking && booking.total_amount && booking.services_total !== undefined) {
+      accommodationTotal = bookingToEdit.accommodation_total;
+    } else if (bookingToEdit && bookingToEdit.total_amount && bookingToEdit.services_total !== undefined) {
       // Вычисляем accommodation_total из total_amount минус services
-      accommodationTotal = booking.total_amount - (booking.services_total || 0);
+      accommodationTotal = bookingToEdit.total_amount - (bookingToEdit.services_total || 0);
     } else {
       // Для новой брони используем price_per_night из таблицы rooms
       accommodationTotal = nights * pricePerNight;
