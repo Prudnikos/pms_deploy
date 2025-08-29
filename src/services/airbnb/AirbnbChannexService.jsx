@@ -340,6 +340,14 @@ class AirbnbChannexService {
         });
         return result;
       })(),
+      
+      // Добавляем accommodation_total - это базовая стоимость проживания без комиссий
+      accommodation_total: (() => {
+        const nights = Math.ceil((new Date(departure) - new Date(arrival)) / (1000 * 60 * 60 * 24));
+        const basePrice = parseFloat(roomMapping.base_price) * nights;
+        console.log('🏠 accommodation_total:', { nights, base_price: roomMapping.base_price, total: basePrice });
+        return basePrice;
+      })(),
       currency: (() => {
         const result = attrs.currency || 'USD';
         console.log('💱 currency:', { attrs_currency: attrs.currency, result });
