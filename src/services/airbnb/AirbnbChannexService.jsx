@@ -140,29 +140,121 @@ class AirbnbChannexService {
   }
 
   /**
+   * Получить room_id по номеру комнаты из PMS
+   */
+  async getRoomIdByNumber(roomNumber) {
+    console.log('🏠 Ищем room_id для номера:', roomNumber);
+    
+    try {
+      // Если roomNumber это название типа комнаты, а не номер
+      if (roomNumber && (roomNumber.includes('Room') || roomNumber.includes('Apartment'))) {
+        // Ищем по room_type вместо room_number
+        const { data: rooms, error } = await supabase
+          .from('rooms')
+          .select('id, room_number, room_type')
+          .ilike('room_type', `%${roomNumber.replace(' Room', '').replace(' Apartment', '')}%`)
+          .limit(1)
+          .single();
+        
+        if (!error && rooms) {
+          console.log('✅ Найдена комната по типу:', rooms.room_type, 'Номер:', rooms.room_number, 'ID:', rooms.id);
+          return rooms.id;
+        }
+      }
+      
+      // Пробуем найти по точному номеру
+      const { data: rooms, error } = await supabase
+        .from('rooms')
+        .select('id, room_number')
+        .eq('room_number', roomNumber)
+        .single();
+
+      if (error || !rooms) {
+        console.log('❌ Комната не найдена, используем первую доступную');
+        // Если не нашли точно по номеру, возьмем первую доступную
+        const { data: firstRoom } = await supabase
+          .from('rooms')
+          .select('id, room_number')
+          .limit(1)
+          .single();
+        
+        return firstRoom?.id || null;
+      }
+
+      console.log('✅ Найдена комната:', rooms.room_number, 'ID:', rooms.id);
+      return rooms.id;
+    } catch (error) {
+      console.error('❌ Ошибка поиска комнаты:', error);
+      return null;
+    }
+  }
+
+  /**
    * Преобразовать Channex бронирование в формат PMS
    */
-  convertToPMSFormat(channexBooking) {
+  async convertToPMSFormat(channexBooking, originalBooking = null) {
     console.log('🔄 Конвертация Channex → PMS (Airbnb)');
     console.log('📋 Channex данные:', channexBooking);
     
     const attrs = channexBooking.attributes;
     const room = attrs.rooms?.[0];
     
-    console.log('📅 Даты:', { arrival: attrs.arrival_date, departure: attrs.departure_date });
+    // Получаем даты из разных возможных источников
+    let arrival = attrs.arrival_date || room?.checkin_date || room?.days ? Object.keys(room.days)[0] : null;
+    let departure = attrs.departure_date || room?.checkout_date;
     
-    // Определяем тип комнаты по room_type_id
-    let roomType = 'standard_apartment';
-    let roomMapping = this.airbnbConfig.room_mapping.standard_apartment;
-    
-    // Находим соответствующий тип комнаты по room_type_id
-    for (const [type, mapping] of Object.entries(this.airbnbConfig.room_mapping)) {
-      if (room?.room_type_id === mapping.channex_room_type_id) {
-        roomType = type;
-        roomMapping = mapping;
-        break;
+    // Если нет departure, вычисляем из room.days (добавляем один день к последней дате)
+    if (!departure && room?.days) {
+      const dayKeys = Object.keys(room.days).sort();
+      if (dayKeys.length > 0) {
+        const lastDay = new Date(dayKeys[dayKeys.length - 1]);
+        lastDay.setDate(lastDay.getDate() + 1);
+        departure = lastDay.toISOString().split('T')[0];
       }
     }
+    
+    // Fallback на оригинальные данные формы если Channex не предоставил даты
+    if (!arrival && originalBooking?.check_in) {
+      arrival = originalBooking.check_in;
+      console.log('🔄 Используем дату заезда из оригинальной формы:', arrival);
+    }
+    if (!departure && originalBooking?.check_out) {
+      departure = originalBooking.check_out;
+      console.log('🔄 Используем дату выезда из оригинальной формы:', departure);
+    }
+    
+    console.log('📅 Даты:', { 
+      arrival: arrival, 
+      departure: departure,
+      from_attrs: { arrival_date: attrs.arrival_date, departure_date: attrs.departure_date },
+      from_room: { checkin_date: room?.checkin_date, checkout_date: room?.checkout_date },
+      room_days: room?.days ? Object.keys(room.days) : null
+    });
+    
+    // Определяем тип комнаты с приоритетом originalBooking.room_type
+    let roomType = originalBooking?.room_type || 'standard_apartment';
+    let roomMapping = this.airbnbConfig.room_mapping[roomType] || this.airbnbConfig.room_mapping.standard_apartment;
+    
+    console.log('🏠 Определение типа комнаты:', {
+      original_room_type: originalBooking?.room_type,
+      room_type_id: room?.room_type_id,
+      selected_room_type: roomType,
+      pms_room_number: roomMapping.pms_room_number
+    });
+    
+    // Если нет originalBooking.room_type, ищем по room_type_id
+    if (!originalBooking?.room_type) {
+      for (const [type, mapping] of Object.entries(this.airbnbConfig.room_mapping)) {
+        if (room?.room_type_id === mapping.channex_room_type_id) {
+          roomType = type;
+          roomMapping = mapping;
+          break;
+        }
+      }
+    }
+
+    // Получаем room_id из базы данных по номеру комнаты
+    const roomId = await this.getRoomIdByNumber(roomMapping.pms_room_number);
 
     const pmsBooking = {
       id: channexBooking.id,
@@ -170,14 +262,40 @@ class AirbnbChannexService {
       source: 'airbnb',
       ota_reservation_code: attrs.ota_reservation_code,
       
-      check_in: attrs.arrival_date || attrs.checkin_date || null,
-      check_out: attrs.departure_date || attrs.checkout_date || null,
+      check_in: arrival,
+      check_out: departure,
       
-      guest_first_name: attrs.customer?.name || 'Guest',
-      guest_last_name: attrs.customer?.surname || 'User',
-      guest_email: attrs.customer?.mail || '',
-      guest_phone: attrs.customer?.phone || '',
+      // Детальное логирование данных гостя для отладки
+      guest_first_name: (() => {
+        const original = originalBooking?.guest_first_name;
+        const channex = attrs.customer?.name;
+        const result = original || channex || 'Guest';
+        console.log('👤 guest_first_name:', { original, channex, result });
+        return result;
+      })(),
+      guest_last_name: (() => {
+        const original = originalBooking?.guest_last_name; 
+        const channex = attrs.customer?.surname;
+        const result = original || channex || 'User';
+        console.log('👤 guest_last_name:', { original, channex, result });
+        return result;
+      })(),
+      guest_email: (() => {
+        const original = originalBooking?.guest_email;
+        const channex = attrs.customer?.mail;
+        const result = original || channex || '';
+        console.log('📧 guest_email:', { original, channex, result });
+        return result;
+      })(),
+      guest_phone: (() => {
+        const original = originalBooking?.guest_phone;
+        const channex = attrs.customer?.phone;  
+        const result = original || channex || '';
+        console.log('📞 guest_phone:', { original, channex, result });
+        return result;
+      })(),
       
+      room_id: roomId, // ✨ Добавляем правильный room_id
       room_type: roomType,
       room_number: roomMapping.pms_room_number,
       room_title: roomMapping.airbnb_room_title,
@@ -185,20 +303,55 @@ class AirbnbChannexService {
       adults: room?.occupancy?.adults || 2,
       children: room?.occupancy?.children || 0,
       
-      total_amount: attrs.total_price || 0,
-      currency: attrs.currency || 'USD',
-      status: attrs.status || 'confirmed',
-      
-      created_at: attrs.created_at,
-      updated_at: attrs.updated_at,
+      // Детальное логирование стоимости для отладки
+      total_amount: (() => {
+        const roomAmount = room?.amount;
+        const attrsAmount = attrs.amount;
+        const totalPrice = attrs.total_price; 
+        const originalAmount = originalBooking?.total_amount;
+        const originalTotalPrice = originalBooking?.total_price;
+        
+        // Вычисляем базовую стоимость если нет других источников
+        const nights = Math.ceil((new Date(departure) - new Date(arrival)) / (1000 * 60 * 60 * 24));
+        const calculatedAmount = parseFloat(roomMapping.base_price) * nights;
+        
+        const result = parseFloat(originalAmount || originalTotalPrice || roomAmount || attrsAmount || totalPrice || calculatedAmount || '0');
+        console.log('💰 total_amount:', { 
+          originalAmount,
+          originalTotalPrice,
+          roomAmount, 
+          attrsAmount, 
+          totalPrice,
+          calculatedAmount,
+          nights,
+          base_price: roomMapping.base_price,
+          result 
+        });
+        return result;
+      })(),
+      currency: (() => {
+        const result = attrs.currency || 'USD';
+        console.log('💱 currency:', { attrs_currency: attrs.currency, result });
+        return result;
+      })(),
+      status: 'confirmed',
       
       notes: attrs.notes || '',
-      airbnb_meta: attrs.meta || {}
+      airbnb_meta: attrs.meta || {},
+
+      // Добавляем guests объект для совместимости с UI
+      guests: {
+        full_name: `${originalBooking?.guest_first_name || attrs.customer?.name || 'Guest'} ${originalBooking?.guest_last_name || attrs.customer?.surname || 'User'}`.trim(),
+        email: originalBooking?.guest_email || attrs.customer?.mail || '',
+        phone: originalBooking?.guest_phone || attrs.customer?.phone || '',
+        address: ''
+      }
     };
 
     console.log('✅ PMS формат:', {
       id: pmsBooking.id,
       guest: `${pmsBooking.guest_first_name} ${pmsBooking.guest_last_name}`,
+      guests_full_name: pmsBooking.guests.full_name,
       room: pmsBooking.room_title,
       dates: `${pmsBooking.check_in} - ${pmsBooking.check_out}`
     });
@@ -219,12 +372,26 @@ class AirbnbChannexService {
       
       console.log('✅ Airbnb бронирование создано через Channex:', result.data?.id);
       
-      // Сохраняем в нашу БД только если это не тестовое бронирование
-      if (result.data && !pmsBooking.test) {
-        const pmsFormatted = this.convertToPMSFormat(result.data);
+      // 🚫 ОБНОВЛЕНИЕ AVAILABILITY ДЛЯ ПРЕДОТВРАЩЕНИЯ ОВЕРБУКИНГА
+      if (result.data) {
+        try {
+          // Получаем маппинг комнаты для определения room_type_id
+          const roomMapping = this.getRoomMapping(pmsBooking.room_type || 'standard_room');
+          await this.updateAvailabilityAfterBooking(
+            roomMapping.channex_room_type_id, 
+            pmsBooking.check_in, 
+            pmsBooking.check_out
+          );
+          console.log('✅ Airbnb Availability обновлен для предотвращения овербукинга');
+        } catch (availabilityError) {
+          console.error('⚠️ Не удалось обновить Airbnb availability (бронь создана, но овербукинг возможен):', availabilityError);
+          // Не бросаем ошибку, так как основная задача (создание брони) выполнена
+        }
+        
+        // Сохраняем в нашу БД
+        const pmsFormatted = await this.convertToPMSFormat(result.data, pmsBooking); // передаем оригинальные данные
         await this.saveToPMS(pmsFormatted);
-      } else if (pmsBooking.test) {
-        console.log('🧪 Тестовое бронирование - не сохраняем в PMS БД');
+        console.log('💾 Бронирование сохранено в PMS БД:', result.data.id);
       }
       
       return result;
@@ -253,7 +420,7 @@ class AirbnbChannexService {
 
       for (const booking of bookings) {
         try {
-          const pmsBooking = this.convertToPMSFormat(booking);
+          const pmsBooking = await this.convertToPMSFormat(booking);
           await this.saveToPMS(pmsBooking);
           synced++;
         } catch (error) {
@@ -341,7 +508,7 @@ class AirbnbChannexService {
    */
   async saveToPMS(pmsBooking) {
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('bookings')
         .upsert(pmsBooking, { 
           onConflict: 'id',
@@ -363,11 +530,38 @@ class AirbnbChannexService {
   }
 
   /**
+   * Синхронизировать конкретное бронирование по ID из Channex в PMS
+   */
+  async syncBookingById(channexBookingId) {
+    console.log('🔄 Синхронизация бронирования из Channex:', channexBookingId);
+
+    try {
+      const response = await this.apiRequest(`/bookings/${channexBookingId}`);
+      const booking = response.data;
+      
+      if (!booking) {
+        throw new Error('Бронирование не найдено в Channex');
+      }
+      
+      console.log('📥 Получено бронирование из Channex:', booking.id);
+      
+      const pmsBooking = await this.convertToPMSFormat(booking);
+      const result = await this.saveToPMS(pmsBooking);
+      
+      console.log('✅ Бронирование синхронизировано в PMS:', pmsBooking.id);
+      return result;
+    } catch (error) {
+      console.error('❌ Ошибка синхронизации бронирования:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Получить статистику Airbnb бронирований
    */
   async getAirbnbStats() {
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('bookings')
         .select('*')
         .eq('channel', 'airbnb');
@@ -385,6 +579,97 @@ class AirbnbChannexService {
       return stats;
     } catch (error) {
       console.error('❌ Ошибка получения статистики:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Обновить availability в Channex после создания Airbnb бронирования
+   * Уменьшает доступность на 1 для всех дат бронирования
+   */
+  async updateAvailabilityAfterBooking(roomTypeId, checkIn, checkOut) {
+    console.log(`🚫 Обновление Airbnb availability после бронирования`);
+    console.log(`📅 Room Type ID: ${roomTypeId}`);
+    console.log(`📅 Даты: ${checkIn} - ${checkOut}`);
+
+    try {
+      // 1. Получаем текущее состояние availability для диапазона дат
+      const startDate = checkIn;
+      const endDate = checkOut;
+      
+      console.log(`🔍 Получаем текущий Airbnb availability для ${roomTypeId}`);
+      
+      // Формируем массив дат для запроса
+      const dates = [];
+      const tempDate = new Date(startDate);
+      const endDateObj = new Date(endDate);
+      
+      while (tempDate < endDateObj) {
+        dates.push(tempDate.toISOString().split('T')[0]);
+        tempDate.setDate(tempDate.getDate() + 1);
+      }
+      
+      // Channex API требует передачи дат в специальном формате
+      const dateFilter = dates.join(',');
+      
+      const currentAvailability = await this.apiRequest(
+        `/availability?filter[property_id]=${this.propertyId}&filter[room_type_id]=${roomTypeId}&filter[date]=${dateFilter}`
+      );
+      
+      if (!currentAvailability?.data) {
+        console.warn('⚠️ Не удалось получить текущий Airbnb availability, применяем значения по умолчанию');
+      }
+      
+      // 2. Генерируем список дат бронирования (исключая дату выезда)
+      const bookingDates = [];
+      const start = new Date(checkIn);
+      const end = new Date(checkOut);
+      
+      for (let date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
+        bookingDates.push(date.toISOString().split('T')[0]);
+      }
+      
+      console.log(`📋 Даты для обновления Airbnb availability:`, bookingDates);
+      
+      // 3. Подготавливаем данные для обновления (уменьшаем availability на 1)
+      const availabilityUpdates = {};
+      
+      bookingDates.forEach(date => {
+        // Ищем текущий availability для этой даты
+        const currentForDate = currentAvailability?.data?.find(
+          av => av.attributes.date === date && av.relationships?.room_type?.data?.id === roomTypeId
+        );
+        
+        // Берем из конфига количество доступных номеров для этого типа
+        const roomMapping = Object.values(this.airbnbConfig.room_mapping).find(
+          room => room.channex_room_type_id === roomTypeId
+        );
+        const defaultCount = roomMapping?.availability_count || 1;
+        
+        const currentCount = currentForDate?.attributes?.availability || defaultCount;
+        const newCount = Math.max(0, currentCount - 1); // Не меньше 0
+        
+        availabilityUpdates[date] = newCount;
+        console.log(`📅 ${date}: ${currentCount} → ${newCount}`);
+      });
+      
+      // 4. Отправляем обновление в Channex
+      const updatePayload = {
+        property_id: this.propertyId,
+        room_type_id: roomTypeId,
+        availability: availabilityUpdates
+      };
+      
+      console.log(`📤 Отправляем обновление Airbnb availability:`, updatePayload);
+      
+      const result = await this.apiRequest('/availability', 'PUT', updatePayload);
+      
+      console.log(`✅ Airbnb Availability успешно обновлен. Предотвращен овербукинг для ${bookingDates.length} дат`);
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Ошибка обновления Airbnb availability:', error);
       throw error;
     }
   }

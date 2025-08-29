@@ -302,6 +302,15 @@ class ChannexService {
       if (response?.data) {
         console.log('✅ Бронь создана в Channex:', response.data.id);
         
+        // 🚫 ОБНОВЛЕНИЕ AVAILABILITY ДЛЯ ПРЕДОТВРАЩЕНИЯ ОВЕРБУКИНГА
+        try {
+          await this.updateAvailabilityAfterBooking(channexRoomType.id, pmsBooking.check_in, pmsBooking.check_out);
+          console.log('✅ Availability обновлен для предотвращения овербукинга');
+        } catch (availabilityError) {
+          console.error('⚠️ Не удалось обновить availability (бронь создана, но овербукинг возможен):', availabilityError);
+          // Не бросаем ошибку, так как основная задача (создание брони) выполнена
+        }
+        
         // Обновляем запись в базе данных
         const updateData = { 
           external_booking_id: response.data.id,
@@ -961,6 +970,144 @@ class ChannexService {
     } catch (error) {
       console.error('❌ Ошибка при проверке доступности комнаты:', error);
       return false;
+    }
+  }
+
+  /**
+   * Обновить availability в Channex после создания бронирования
+   * Уменьшает доступность на 1 для всех дат бронирования
+   */
+  async updateAvailabilityAfterBooking(roomTypeId, checkIn, checkOut) {
+    console.log(`🚫 Обновление availability после бронирования`);
+    console.log(`📅 Room Type ID: ${roomTypeId}`);
+    console.log(`📅 Даты: ${checkIn} - ${checkOut}`);
+
+    try {
+      // 1. Получаем текущее состояние availability для диапазона дат
+      const startDate = checkIn;
+      const endDate = checkOut;
+      
+      console.log(`🔍 Получаем текущий availability для ${roomTypeId}`);
+      const currentAvailability = await this.apiRequest(
+        `/availability?filter[property_id]=${this.propertyId}&filter[room_type_id]=${roomTypeId}&filter[date][gte]=${startDate}&filter[date][lt]=${endDate}`
+      );
+      
+      if (!currentAvailability?.data) {
+        console.warn('⚠️ Не удалось получить текущий availability, применяем значения по умолчанию');
+      }
+      
+      // 2. Генерируем список дат бронирования (исключая дату выезда)
+      const bookingDates = [];
+      const start = new Date(checkIn);
+      const end = new Date(checkOut);
+      
+      for (let date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
+        bookingDates.push(date.toISOString().split('T')[0]);
+      }
+      
+      console.log(`📋 Даты для обновления availability:`, bookingDates);
+      
+      // 3. Подготавливаем данные для обновления (уменьшаем availability на 1)
+      const availabilityUpdates = {};
+      
+      bookingDates.forEach(date => {
+        // Ищем текущий availability для этой даты
+        const currentForDate = currentAvailability?.data?.find(
+          av => av.attributes.date === date && av.relationships?.room_type?.data?.id === roomTypeId
+        );
+        
+        const currentCount = currentForDate?.attributes?.availability || 1; // Default 1 если не найдено
+        const newCount = Math.max(0, currentCount - 1); // Не меньше 0
+        
+        availabilityUpdates[date] = newCount;
+        console.log(`📅 ${date}: ${currentCount} → ${newCount}`);
+      });
+      
+      // 4. Отправляем обновление в Channex
+      const updatePayload = {
+        property_id: this.propertyId,
+        room_type_id: roomTypeId,
+        availability: availabilityUpdates
+      };
+      
+      console.log(`📤 Отправляем обновление availability:`, updatePayload);
+      
+      const result = await this.apiRequest('/availability', 'PUT', updatePayload);
+      
+      console.log(`✅ Availability успешно обновлен. Предотвращен овербукинг для ${bookingDates.length} дат`);
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Ошибка обновления availability:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Восстановить availability в Channex после удаления бронирования
+   * Увеличивает доступность на 1 для всех дат бронирования
+   */
+  async restoreAvailabilityAfterCancellation(roomTypeId, checkIn, checkOut) {
+    console.log(`🔓 Восстановление availability после удаления/отмены бронирования`);
+    console.log(`📅 Room Type ID: ${roomTypeId}`);
+    console.log(`📅 Даты: ${checkIn} - ${checkOut}`);
+
+    try {
+      // 1. Получаем текущее состояние availability для диапазона дат
+      const startDate = checkIn;
+      const endDate = checkOut;
+      
+      console.log(`🔍 Получаем текущий availability для восстановления ${roomTypeId}`);
+      const currentAvailability = await this.apiRequest(
+        `/availability?filter[property_id]=${this.propertyId}&filter[room_type_id]=${roomTypeId}&filter[date][gte]=${startDate}&filter[date][lt]=${endDate}`
+      );
+      
+      // 2. Генерируем список дат бронирования (исключая дату выезда)
+      const bookingDates = [];
+      const start = new Date(checkIn);
+      const end = new Date(checkOut);
+      
+      for (let date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
+        bookingDates.push(date.toISOString().split('T')[0]);
+      }
+      
+      console.log(`📋 Даты для восстановления availability:`, bookingDates);
+      
+      // 3. Подготавливаем данные для обновления (увеличиваем availability на 1)
+      const availabilityUpdates = {};
+      
+      bookingDates.forEach(date => {
+        // Ищем текущий availability для этой даты
+        const currentForDate = currentAvailability?.data?.find(
+          av => av.attributes.date === date && av.relationships?.room_type?.data?.id === roomTypeId
+        );
+        
+        const currentCount = currentForDate?.attributes?.availability || 0;
+        const newCount = currentCount + 1; // Увеличиваем на 1
+        
+        availabilityUpdates[date] = newCount;
+        console.log(`📅 ${date}: ${currentCount} → ${newCount} (восстановлено)`);
+      });
+      
+      // 4. Отправляем обновление в Channex
+      const updatePayload = {
+        property_id: this.propertyId,
+        room_type_id: roomTypeId,
+        availability: availabilityUpdates
+      };
+      
+      console.log(`📤 Отправляем восстановление availability:`, updatePayload);
+      
+      const result = await this.apiRequest('/availability', 'PUT', updatePayload);
+      
+      console.log(`✅ Availability успешно восстановлен для ${bookingDates.length} дат`);
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Ошибка восстановления availability:', error);
+      throw error;
     }
   }
 }

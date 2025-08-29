@@ -69,7 +69,17 @@
       "mcp__playwright__browser_handle_dialog",
       "mcp__playwright__browser_take_screenshot",
       "mcp__playwright__browser_select_option",
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "mcp__playwright__browser_fill_form",
+      "Bash(cat:*)",
+      "mcp__playwright__browser_press_key",
+      "Bash(npx supabase db reset:*)",
+      "Bash(npx supabase migration:*)",
+      "Bash(npx supabase db push:*)",
+      "Bash(npx supabase link:*)",
+      "Bash(ren:*)",
+      "Bash(grep:*)",
+      "Read(C:\\Users\\Кос\\.claude/**)"
     ],
     "deny": [],
     "ask": [],

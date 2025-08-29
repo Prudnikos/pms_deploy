@@ -39,7 +39,7 @@ export const getBookingsForRange = async (startDate, endDate) => {
 
   console.log('🔍 getBookingsForRange: Загружаем бронирования для диапазона', { start, end });
 
-  return handleSupabaseQuery(
+  const result = await handleSupabaseQuery(
     supabase
       .from('bookings')
       .select(`
@@ -54,6 +54,39 @@ export const getBookingsForRange = async (startDate, endDate) => {
       // Сортируем по дате создания
       .order('created_at', { ascending: false })
   );
+
+  // Если запрос успешный, обрабатываем данные для совместимости
+  if (result.data) {
+    result.data = result.data.map(booking => {
+      // Если нет данных из таблицы guests, но есть встроенный объект guests
+      if (!booking.guests && booking.guests !== null && typeof booking.guests === 'object' && booking.guests.full_name) {
+        console.log('📝 Исправляем guests структуру для booking:', booking.id?.substring(0, 8));
+        // Используем встроенный объект guests как основной источник данных
+        return {
+          ...booking,
+          guests: booking.guests
+        };
+      }
+      
+      // Если есть guest_first_name/guest_last_name но нет guests объекта, создаем его
+      if (!booking.guests && (booking.guest_first_name || booking.guest_last_name)) {
+        console.log('📝 Создаем guests объект из guest полей для booking:', booking.id?.substring(0, 8));
+        return {
+          ...booking,
+          guests: {
+            full_name: `${booking.guest_first_name || ''} ${booking.guest_last_name || ''}`.trim(),
+            email: booking.guest_email,
+            phone: booking.guest_phone,
+            address: ''
+          }
+        };
+      }
+
+      return booking;
+    });
+  }
+
+  return result;
 };
 
 // Получение полной информации о бронировании (для обновления данных после изменения услуг)
@@ -216,6 +249,26 @@ export const updateGuest = async (id, updates) => {
 export const deleteBooking = async (id) => {
   console.log('🗑️ Supabase: deleteBooking called with id:', id);
   
+  // Сначала получаем данные бронирования для восстановления availability
+  let bookingToDelete = null;
+  try {
+    const { data: bookingData, error: fetchError } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        rooms (*)
+      `)
+      .eq('id', id)
+      .single();
+      
+    if (!fetchError && bookingData) {
+      bookingToDelete = bookingData;
+      console.log('📋 Данные бронирования для восстановления availability:', bookingToDelete.id);
+    }
+  } catch (fetchError) {
+    console.warn('⚠️ Не удалось получить данные бронирования для восстановления availability:', fetchError);
+  }
+  
   const result = await handleSupabaseQuery(
     supabase
       .from('bookings')
@@ -227,6 +280,45 @@ export const deleteBooking = async (id) => {
     console.error('❌ Supabase: deleteBooking failed:', result.error);
   } else {
     console.log('✅ Supabase: deleteBooking successful for id:', id);
+    
+    // 🔓 ВОССТАНОВЛЕНИЕ AVAILABILITY ПОСЛЕ УДАЛЕНИЯ БРОНИ
+    if (bookingToDelete) {
+      setTimeout(async () => {
+        try {
+          // Импортируем channexService динамически чтобы избежать циклических зависимостей
+          const { default: channexService } = await import('@/services/channex/ChannexService.jsx');
+          
+          // Определяем channex_room_type_id для восстановления availability
+          const roomNumber = bookingToDelete.rooms?.room_number || bookingToDelete.room_number;
+          let channexRoomTypeId = null;
+          
+          // Простой маппинг по номеру комнаты (как в оригинальном коде)
+          if (roomNumber && roomNumber.includes('101')) {
+            channexRoomTypeId = '8df610ce-cabb-429d-98d0-90c33f451d97'; // Standard Room
+          } else if (roomNumber && roomNumber.includes('201')) {
+            channexRoomTypeId = '734d5d86-1fe6-44d8-b6c5-4ac9349c4410'; // Deluxe Room  
+          } else if (roomNumber && (roomNumber.includes('3') || roomNumber.includes('suite'))) {
+            channexRoomTypeId = 'e243d5aa-eff3-43a7-8bf8-87352b62fdc3'; // Suite
+          } else {
+            // Fallback для других комнат
+            channexRoomTypeId = '8df610ce-cabb-429d-98d0-90c33f451d97'; // Standard Room по умолчанию
+          }
+          
+          console.log(`🔓 Восстанавливаем availability для ${roomNumber} (${channexRoomTypeId})`);
+          
+          await channexService.restoreAvailabilityAfterCancellation(
+            channexRoomTypeId,
+            bookingToDelete.check_in,
+            bookingToDelete.check_out
+          );
+          
+          console.log('✅ Availability успешно восстановлен после удаления брони');
+          
+        } catch (error) {
+          console.error('❌ Ошибка восстановления availability:', error);
+        }
+      }, 1000);
+    }
   }
   
   return result;

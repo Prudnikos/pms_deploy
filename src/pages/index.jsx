@@ -23,6 +23,11 @@ import Stays from "./Stays";
 import Birthdays from "./Birthdays";
 import Tasks from "./Tasks";
 
+// Импорты страниц симулятора Airbnb
+import AirbnbSimulator from "./AirbnbSimulator";
+import AirbnbBooking from "./AirbnbBooking";
+import AirbnbConfirmation from "./AirbnbConfirmation";
+
 const PAGES = {
     Dashboard: Dashboard,
     Bookings: Bookings,
@@ -39,7 +44,11 @@ const PAGES = {
     Departures: Departures,
     Stays: Stays,
     Birthdays: Birthdays,
-    Tasks: Tasks
+    Tasks: Tasks,
+    // Страницы симулятора Airbnb
+    AirbnbSimulator: AirbnbSimulator,
+    AirbnbBooking: AirbnbBooking,
+    AirbnbConfirmation: AirbnbConfirmation
 }
 
 function _getCurrentPage(url) {
@@ -96,6 +105,11 @@ function AppRoutes() {
                 <Route path="/Stays" element={<Stays />} />
                 <Route path="/Birthdays" element={<Birthdays />} />
                 <Route path="/Tasks" element={<Tasks />} />
+                
+                {/* Роуты для симулятора Airbnb */}
+                <Route path="/airbnb" element={<AirbnbSimulator />} />
+                <Route path="/airbnb-booking" element={<AirbnbBooking />} />
+                <Route path="/airbnb-confirmation" element={<AirbnbConfirmation />} />
             </Routes>
         </Layout>
     );
