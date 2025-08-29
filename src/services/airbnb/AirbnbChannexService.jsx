@@ -146,43 +146,44 @@ class AirbnbChannexService {
     console.log('🏠 Ищем room_id для номера:', roomNumber);
     
     try {
-      // Если roomNumber это название типа комнаты, а не номер
-      if (roomNumber && (roomNumber.includes('Room') || roomNumber.includes('Apartment'))) {
-        // Ищем по room_type вместо room_number
-        const { data: rooms, error } = await supabase
+      // Сначала пробуем найти по точному совпадению room_number
+      const { data: exactMatch, error: exactError } = await supabase
+        .from('rooms')
+        .select('id, room_number, room_type')
+        .eq('room_number', roomNumber)
+        .single();
+      
+      if (!exactError && exactMatch) {
+        console.log('✅ Найдено точное совпадение:', exactMatch.room_number, 'ID:', exactMatch.id);
+        return exactMatch.id;
+      }
+      
+      // Если roomNumber это "Standard Room", "Deluxe Room" или "Suite"
+      // Ищем по room_type
+      let roomType = null;
+      if (roomNumber === 'Standard Room') {
+        roomType = 'Standard';
+      } else if (roomNumber === 'Deluxe Room') {
+        roomType = 'Deluxe';
+      } else if (roomNumber === 'Suite') {
+        roomType = 'Suite';
+      }
+      
+      if (roomType) {
+        const { data: typeMatch, error: typeError } = await supabase
           .from('rooms')
           .select('id, room_number, room_type')
-          .ilike('room_type', `%${roomNumber.replace(' Room', '').replace(' Apartment', '')}%`)
-          .limit(1)
+          .eq('room_type', roomType)
           .single();
         
-        if (!error && rooms) {
-          console.log('✅ Найдена комната по типу:', rooms.room_type, 'Номер:', rooms.room_number, 'ID:', rooms.id);
-          return rooms.id;
+        if (!typeError && typeMatch) {
+          console.log('✅ Найдено по типу:', typeMatch.room_type, 'Номер:', typeMatch.room_number, 'ID:', typeMatch.id);
+          return typeMatch.id;
         }
       }
       
-      // Пробуем найти по точному номеру
-      const { data: rooms, error } = await supabase
-        .from('rooms')
-        .select('id, room_number')
-        .eq('room_number', roomNumber)
-        .single();
-
-      if (error || !rooms) {
-        console.log('❌ Комната не найдена, используем первую доступную');
-        // Если не нашли точно по номеру, возьмем первую доступную
-        const { data: firstRoom } = await supabase
-          .from('rooms')
-          .select('id, room_number')
-          .limit(1)
-          .single();
-        
-        return firstRoom?.id || null;
-      }
-
-      console.log('✅ Найдена комната:', rooms.room_number, 'ID:', rooms.id);
-      return rooms.id;
+      console.log('❌ Комната не найдена для:', roomNumber);
+      return null;
     } catch (error) {
       console.error('❌ Ошибка поиска комнаты:', error);
       return null;
@@ -232,14 +233,24 @@ class AirbnbChannexService {
     });
     
     // Определяем тип комнаты с приоритетом originalBooking.room_type
-    let roomType = originalBooking?.room_type || 'standard_apartment';
-    let roomMapping = this.airbnbConfig.room_mapping[roomType] || this.airbnbConfig.room_mapping.standard_apartment;
+    let roomType = originalBooking?.room_type || 'standard_room';
+    
+    // Проверяем, есть ли такой ключ в маппинге
+    if (!this.airbnbConfig.room_mapping[roomType]) {
+      console.log('⚠️ Тип комнаты не найден в маппинге:', roomType);
+      console.log('   Доступные типы:', Object.keys(this.airbnbConfig.room_mapping));
+      // Fallback на standard_room
+      roomType = 'standard_room';
+    }
+    
+    let roomMapping = this.airbnbConfig.room_mapping[roomType];
     
     console.log('🏠 Определение типа комнаты:', {
       original_room_type: originalBooking?.room_type,
       room_type_id: room?.room_type_id,
       selected_room_type: roomType,
-      pms_room_number: roomMapping.pms_room_number
+      pms_room_number: roomMapping.pms_room_number,
+      channex_room_type_id: roomMapping.channex_room_type_id
     });
     
     // Если нет originalBooking.room_type, ищем по room_type_id
@@ -259,7 +270,7 @@ class AirbnbChannexService {
     const pmsBooking = {
       id: channexBooking.id,
       channel: 'airbnb',
-      source: 'airbnb',
+      source: 'Airbnb', // Изменено на Airbnb с большой буквы для единообразия
       ota_reservation_code: attrs.ota_reservation_code,
       
       check_in: arrival,
@@ -348,6 +359,7 @@ class AirbnbChannexService {
       }
     };
 
+    // Теперь можем использовать pmsBooking после его полного определения
     console.log('✅ PMS формат:', {
       id: pmsBooking.id,
       guest: `${pmsBooking.guest_first_name} ${pmsBooking.guest_last_name}`,
@@ -508,9 +520,71 @@ class AirbnbChannexService {
    */
   async saveToPMS(pmsBooking) {
     try {
+      // Сначала создаем или находим гостя
+      let guestId = pmsBooking.guest_id;
+      
+      if (!guestId && pmsBooking.guests) {
+        // Создаем нового гостя
+        const { data: guestData, error: guestError } = await supabase
+          .from('guests')
+          .upsert({
+            full_name: pmsBooking.guests.full_name || `${pmsBooking.guest_first_name} ${pmsBooking.guest_last_name}`.trim(),
+            email: pmsBooking.guests.email || pmsBooking.guest_email,
+            phone: pmsBooking.guests.phone || pmsBooking.guest_phone,
+            address: pmsBooking.guests.address || ''
+          }, {
+            onConflict: 'email',
+            ignoreDuplicates: false
+          })
+          .select()
+          .single();
+          
+        if (guestError) {
+          console.error('⚠️ Ошибка создания гостя:', guestError);
+          // Если гость уже существует, пытаемся его найти
+          const { data: existingGuest } = await supabase
+            .from('guests')
+            .select('id')
+            .eq('email', pmsBooking.guests.email || pmsBooking.guest_email)
+            .single();
+            
+          guestId = existingGuest?.id;
+        } else {
+          guestId = guestData?.id;
+        }
+      }
+      
+      // Подготавливаем данные для сохранения бронирования
+      const bookingData = {
+        ...pmsBooking,
+        guest_id: guestId,
+        // Удаляем поле guests, так как его нет в таблице bookings
+        guests: undefined,
+        // Убеждаемся что поля source и channel установлены
+        source: pmsBooking.source || 'Airbnb',
+        channel: pmsBooking.channel || 'airbnb'
+      };
+      
+      // Удаляем undefined поля
+      Object.keys(bookingData).forEach(key => {
+        if (bookingData[key] === undefined) {
+          delete bookingData[key];
+        }
+      });
+      
+      // Логируем данные для отладки
+      console.log('💾 Данные для сохранения в БД:', {
+        id: bookingData.id,
+        source: bookingData.source,
+        channel: bookingData.channel,
+        guest_id: bookingData.guest_id,
+        check_in: bookingData.check_in,
+        check_out: bookingData.check_out
+      });
+      
       const { data, error } = await supabase
         .from('bookings')
-        .upsert(pmsBooking, { 
+        .upsert(bookingData, { 
           onConflict: 'id',
           ignoreDuplicates: false 
         })
@@ -521,7 +595,7 @@ class AirbnbChannexService {
         throw error;
       }
 
-      console.log('💾 Сохранено в PMS БД:', pmsBooking.id);
+      console.log('💾 Сохранено в PMS БД:', bookingData.id);
       return data;
     } catch (error) {
       console.error('❌ Критическая ошибка сохранения:', error);
@@ -635,10 +709,21 @@ class AirbnbChannexService {
       const availabilityUpdates = {};
       
       bookingDates.forEach(date => {
-        // Ищем текущий availability для этой даты
-        const currentForDate = currentAvailability?.data?.find(
-          av => av.attributes.date === date && av.relationships?.room_type?.data?.id === roomTypeId
-        );
+        // Проверяем, что currentAvailability это массив или объект с data
+        let availabilityData = currentAvailability;
+        
+        // Если это объект с полем data, используем data
+        if (currentAvailability && !Array.isArray(currentAvailability) && currentAvailability.data) {
+          availabilityData = currentAvailability.data;
+        }
+        
+        // Если это массив, ищем данные для нужной даты
+        let currentForDate = null;
+        if (Array.isArray(availabilityData)) {
+          currentForDate = availabilityData.find(
+            av => av.attributes && av.attributes.date === date
+          );
+        }
         
         // Берем из конфига количество доступных номеров для этого типа
         const roomMapping = Object.values(this.airbnbConfig.room_mapping).find(
