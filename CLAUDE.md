@@ -213,12 +213,38 @@ mapSourceToOtaName(source) {
 - `src/services/channex/BookingSync.js` - синхронизация (legacy)
 - Tests: `test-channex-booking.cjs`, `final-channex-test.cjs`
 
+## MCP (Model Context Protocol) Integration
+
+### База данных через MCP
+**Статус**: ✅ ПОЛНОСТЬЮ НАСТРОЕНО
+
+Claude AI ассистент имеет прямой доступ к базе данных PostgreSQL через MCP и может:
+- Читать/создавать/обновлять/удалять записи во всех таблицах
+- Изменять структуру таблиц (ALTER TABLE, CREATE TABLE, DROP TABLE)
+- Создавать и управлять индексами
+- Управлять RLS политиками
+- Создавать триггеры и функции
+- Выполнять любые SQL запросы напрямую
+
+### Конфигурация MCP
+- **Файл конфигурации**: `C:\Users\{username}\AppData\Roaming\Claude\claude_desktop_config.json`
+- **MCP сервер**: `@henkey/postgres-mcp-server`
+- **Connection string**: Хранится в конфигурации MCP
+- **База данных**: PostgreSQL на Supabase
+
+### Рекомендации по работе с БД через MCP
+1. Всегда делайте резервные копии перед критическими изменениями
+2. Тестируйте изменения на небольшом наборе данных
+3. Используйте транзакции для атомарных операций
+4. Проверяйте RLS политики после изменений
+
 ## Security Notes
 
 - Supabase credentials are hardcoded in `src/lib/supabase.js` (should use environment variables)
 - Authentication tokens handled by Supabase SDK
 - Row Level Security should be implemented in Supabase for data protection
 - **Channex API Key**: Хранится в `.env.local` (production ready)
+- **MCP доступ**: Service Role Key обходит все RLS политики - используйте осторожно
 ## AI Assistant Guidelones
 
 Разработка ведется на ОС Windows
