@@ -162,6 +162,10 @@ export default function AirbnbBooking() {
         adults: guestsCount,
         children: 0,
         notes: guestInfo.message,
+        total_amount: total,  // Добавляем общую сумму
+        total_price: total,   // Дублируем для совместимости
+        price_per_night: pricePerNight,  // Цена за ночь
+        nights: nights,  // Количество ночей
         test: true // Помечаем как тестовое бронирование
       };
       

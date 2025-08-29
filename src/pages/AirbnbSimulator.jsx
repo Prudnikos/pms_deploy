@@ -149,21 +149,48 @@ function convertChannexToAirbnbRooms(roomTypes, ratePlans, availabilityData, use
       hasAvailability = minAvailability > 0;
       console.log(`📊 ${airbnbId}: используем базовую доступность = ${minAvailability}`);
     } else {
-      // Используем availability данные из API по rate_plan_id
-      const ratePlanAvailability = availabilityData[config.channex_rate_plan_id];
-      if (ratePlanAvailability) {
-        // Находим минимальную доступность за период
-        for (const [date, restrictions] of Object.entries(ratePlanAvailability)) {
-          const availability = parseInt(restrictions.availability || 0);
-          if (availability < minAvailability) {
-            minAvailability = availability;
+      // Специальная логика для Suite - используем его собственную availability_count из конфига
+      // так как он делит rate_plan с Deluxe
+      if (airbnbId === 'suite' && config.availability_count !== undefined) {
+        // Для Suite используем фиксированное значение из конфига
+        minAvailability = config.availability_count;
+        hasAvailability = minAvailability > 0;
+        
+        // Проверяем, не занят ли уже Suite в других бронированиях
+        const ratePlanAvailability = availabilityData[config.channex_rate_plan_id];
+        if (ratePlanAvailability) {
+          // Если Deluxe полностью занят (availability = 0), Suite все равно может быть доступен
+          const deluxeOccupied = Object.values(ratePlanAvailability).some(r => parseInt(r.availability || 0) === 0);
+          if (!deluxeOccupied) {
+            // Если Deluxe свободен, проверяем общую доступность
+            for (const [date, restrictions] of Object.entries(ratePlanAvailability)) {
+              const availability = parseInt(restrictions.availability || 0);
+              if (availability === 0) {
+                // Если на какую-то дату availability = 0, Suite тоже недоступен
+                minAvailability = 0;
+                break;
+              }
+            }
           }
-          hasAvailability = true;
         }
-        console.log(`📊 ${airbnbId}: минимальная availability за период = ${minAvailability}`);
+        console.log(`📊 ${airbnbId}: используем отдельную доступность Suite = ${minAvailability}`);
       } else {
-        console.log(`⚠️ ${airbnbId}: нет данных availability для rate_plan ${config.channex_rate_plan_id}`);
-        minAvailability = 0;
+        // Используем availability данные из API по rate_plan_id для остальных номеров
+        const ratePlanAvailability = availabilityData[config.channex_rate_plan_id];
+        if (ratePlanAvailability) {
+          // Находим минимальную доступность за период
+          for (const [date, restrictions] of Object.entries(ratePlanAvailability)) {
+            const availability = parseInt(restrictions.availability || 0);
+            if (availability < minAvailability) {
+              minAvailability = availability;
+            }
+            hasAvailability = true;
+          }
+          console.log(`📊 ${airbnbId}: минимальная availability за период = ${minAvailability}`);
+        } else {
+          console.log(`⚠️ ${airbnbId}: нет данных availability для rate_plan ${config.channex_rate_plan_id}`);
+          minAvailability = 0;
+        }
       }
     }
     
