@@ -125,19 +125,45 @@ function convertChannexToAirbnbRooms(roomTypes, ratePlans, availabilityData, use
   
   // Проходим по каждому маппингу Airbnb
   for (const [airbnbId, config] of Object.entries(mapping)) {
-    console.log(`🔍 Проверяем номер ${airbnbId}...`);
+    console.log(`\n🔍 Проверяем номер ${airbnbId} (${config.airbnb_room_title})...`);
+    console.log(`   Room Type ID: ${config.channex_room_type_id}`);
+    console.log(`   Rate Plan ID: ${config.channex_rate_plan_id}`);
     
     const roomType = roomTypes.find(rt => rt.id === config.channex_room_type_id);
-    const ratePlan = ratePlans.find(rp => rp.id === config.channex_rate_plan_id);
     
     if (!roomType) {
-      console.log(`⚠️ Пропускаем ${airbnbId}: нет room_type с ID ${config.channex_room_type_id}`);
+      console.log(`   ⚠️ НЕТ room_type с ID ${config.channex_room_type_id}`);
+      console.log(`   Доступные room types:`, roomTypes.map(rt => rt.id));
       continue;
     }
     
+    console.log(`   ✅ Найден room_type: ${roomType.attributes?.title}`);
+    
+    // Для Suite и Villa используем известные Rate Plan ID напрямую
+    let ratePlan = ratePlans.find(rp => rp.id === config.channex_rate_plan_id);
+    
     if (!ratePlan) {
-      console.log(`⚠️ Пропускаем ${airbnbId}: нет rate_plan с ID ${config.channex_rate_plan_id}`);
-      continue;
+      console.log(`   ⚠️ Rate Plan ${config.channex_rate_plan_id} не найден в API`);
+      
+      // Fallback для известных номеров
+      if (airbnbId === 'suite' && config.channex_rate_plan_id === '45195f3e-fb59-4ddf-9e29-b667dbe2ab58') {
+        console.log(`   📌 Используем известный Suite Rate Plan (fallback)`);
+        ratePlan = {
+          id: '45195f3e-fb59-4ddf-9e29-b667dbe2ab58',
+          attributes: { title: 'Suite Rate', currency: 'USD' }
+        };
+      } else if (airbnbId === 'villa_first_floor' && config.channex_rate_plan_id === 'aa96a05e-f1a5-4e78-a9cb-0638ee1140f2') {
+        console.log(`   📌 Используем известный Villa Rate Plan (fallback)`);
+        ratePlan = {
+          id: 'aa96a05e-f1a5-4e78-a9cb-0638ee1140f2',
+          attributes: { title: 'Villa First Floor Rate', currency: 'USD' }
+        };
+      } else {
+        console.log(`   Доступные rate plans:`, ratePlans.map(rp => rp.id));
+        continue;
+      }
+    } else {
+      console.log(`   ✅ Найден rate_plan: ${ratePlan.attributes?.title}`);
     }
     
     // Определяем доступность из Channex API
@@ -177,14 +203,14 @@ function convertChannexToAirbnbRooms(roomTypes, ratePlans, availabilityData, use
     }
     
     if (!hasAvailability || minAvailability <= 0) {
-      console.log(`❌ Пропускаем ${airbnbId}: нет доступности (min=${minAvailability})`);
+      console.log(`   ❌ ПРОПУСКАЕМ: нет доступности (min=${minAvailability}, hasAvailability=${hasAvailability})`);
       continue;
     }
     
     // Рассчитываем цену
     const basePrice = parseFloat(config.base_price);
     
-    console.log(`✅ Добавляем номер ${airbnbId}: минимальная доступность=${minAvailability}, цена=${basePrice}`);
+    console.log(`   ✅ ДОБАВЛЯЕМ В СПИСОК: доступность=${minAvailability}, цена=$${basePrice}, вместимость=${config.max_occupancy}`);
     
     airbnbRooms.push({
       id: airbnbId,
@@ -362,20 +388,33 @@ export default function AirbnbSimulator() {
   }, [checkIn, checkOut, guestsCount]);
 
   const calculateNights = () => {
-    if (!checkIn || !checkOut) return 0;
+    if (!checkIn || !checkOut) return 1;
     const start = new Date(checkIn);
     const end = new Date(checkOut);
-    return Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    // Минимум 1 ночь
+    return nights > 0 ? nights : 1;
   };
 
   const handleBookRoom = (room) => {
+    const nights = calculateNights();
+    const totalPrice = room.price * nights;
+    
+    console.log('🎯 Переход к бронированию:', {
+      roomId: room.id,
+      roomPrice: room.price,
+      nights: nights,
+      totalPrice: totalPrice
+    });
+    
     const bookingParams = new URLSearchParams({
       roomId: room.id,
       checkin: checkIn,
       checkout: checkOut,
       guests: guestsCount.toString(),
-      nights: calculateNights().toString(),
-      totalPrice: (room.price * calculateNights()).toString()
+      nights: nights.toString(),
+      totalPrice: totalPrice.toString(),
+      pricePerNight: room.price.toString()
     });
 
     navigate(`/airbnb-booking?${bookingParams.toString()}`);

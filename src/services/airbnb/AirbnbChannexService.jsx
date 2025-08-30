@@ -73,15 +73,34 @@ class AirbnbChannexService {
     // Вычисляем стоимость по дням
     const checkIn = new Date(pmsBooking.check_in);
     const checkOut = new Date(pmsBooking.check_out);
-    const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+    let nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+    
+    // Минимум 1 ночь для бронирования
+    if (nights <= 0) {
+      nights = 1;
+      // Если даты одинаковые, сдвигаем check_out на день вперед
+      const nextDay = new Date(checkIn);
+      nextDay.setDate(nextDay.getDate() + 1);
+      pmsBooking.check_out = nextDay.toISOString().split('T')[0];
+    }
+    
+    // Используем переданную цену за ночь или цену из конфигурации
+    const pricePerNight = pmsBooking.price_per_night || parseFloat(roomMapping.base_price) || 100;
     
     const days = {};
     for (let i = 0; i < nights; i++) {
       const currentDate = new Date(checkIn);
       currentDate.setDate(currentDate.getDate() + i);
       const dateStr = currentDate.toISOString().split('T')[0];
-      days[dateStr] = roomMapping.base_price;
+      days[dateStr] = pricePerNight;
     }
+    
+    console.log('💰 Расчет цен по дням:', {
+      nights,
+      pricePerNight,
+      totalAmount: pmsBooking.total_amount,
+      days
+    });
 
     const channexBooking = {
       booking: {
@@ -146,11 +165,11 @@ class AirbnbChannexService {
     console.log('🏠 Ищем room_id для номера:', roomNumber);
     
     try {
-      // Сначала пробуем найти по точному совпадению room_number
+      // Сначала пробуем найти по точному совпадению room_number (регистронезависимый поиск)
       const { data: exactMatch, error: exactError } = await supabase
         .from('rooms')
         .select('id, room_number, room_type')
-        .eq('room_number', roomNumber)
+        .ilike('room_number', roomNumber)
         .single();
       
       if (!exactError && exactMatch) {
@@ -158,15 +177,17 @@ class AirbnbChannexService {
         return exactMatch.id;
       }
       
-      // Если roomNumber это "Standard Room", "Deluxe Room" или "Suite"
+      // Если roomNumber это "Standard Room", "Deluxe Room", "Suite", "Deluxe Suite Apartment" или "Villa First Floor"
       // Ищем по room_type
       let roomType = null;
       if (roomNumber === 'Standard Room') {
         roomType = 'Standard';
       } else if (roomNumber === 'Deluxe Room') {
         roomType = 'Deluxe';
-      } else if (roomNumber === 'Suite') {
+      } else if (roomNumber === 'Suite' || roomNumber === 'Deluxe Suite Apartment') {
         roomType = 'Suite';
+      } else if (roomNumber === 'Villa First Floor') {
+        roomType = 'Villa';
       }
       
       if (roomType) {
@@ -362,8 +383,8 @@ class AirbnbChannexService {
       guests: {
         full_name: `${originalBooking?.guest_first_name || attrs.customer?.name || 'Guest'} ${originalBooking?.guest_last_name || attrs.customer?.surname || 'User'}`.trim(),
         email: originalBooking?.guest_email || attrs.customer?.mail || '',
-        phone: originalBooking?.guest_phone || attrs.customer?.phone || '',
-        address: ''
+        phone: originalBooking?.guest_phone || attrs.customer?.phone || ''
+        // убрали address - его нет в БД
       }
     };
 
@@ -371,7 +392,6 @@ class AirbnbChannexService {
     console.log('✅ PMS формат:', {
       id: pmsBooking.id,
       guest: `${pmsBooking.guest_first_name} ${pmsBooking.guest_last_name}`,
-      guests_full_name: pmsBooking.guests.full_name,
       room: pmsBooking.room_title,
       dates: `${pmsBooking.check_in} - ${pmsBooking.check_out}`
     });
@@ -538,8 +558,8 @@ class AirbnbChannexService {
           .upsert({
             full_name: pmsBooking.guests.full_name || `${pmsBooking.guest_first_name} ${pmsBooking.guest_last_name}`.trim(),
             email: pmsBooking.guests.email || pmsBooking.guest_email,
-            phone: pmsBooking.guests.phone || pmsBooking.guest_phone,
-            address: pmsBooking.guests.address || ''
+            phone: pmsBooking.guests.phone || pmsBooking.guest_phone
+            // убрали address - его нет в таблице
           }, {
             onConflict: 'email',
             ignoreDuplicates: false
@@ -568,6 +588,15 @@ class AirbnbChannexService {
         guest_id: guestId,
         // Удаляем поле guests, так как его нет в таблице bookings
         guests: undefined,
+        // Удаляем guests_full_name - его нет в таблице bookings
+        guests_full_name: undefined,
+        // Ограничиваем длину строковых полей согласно БД ограничениям
+        guest_first_name: (pmsBooking.guest_first_name || '').substring(0, 20),
+        guest_last_name: (pmsBooking.guest_last_name || '').substring(0, 20),
+        guest_email: (pmsBooking.guest_email || '').substring(0, 100),
+        // Ограничиваем room_number и room_title до 20 символов
+        room_number: (pmsBooking.room_number || '').substring(0, 20),
+        room_title: (pmsBooking.room_title || '').substring(0, 20),
         // Убеждаемся что поля source и channel установлены
         source: pmsBooking.source || 'Airbnb',
         channel: pmsBooking.channel || 'airbnb'
@@ -586,9 +615,22 @@ class AirbnbChannexService {
         source: bookingData.source,
         channel: bookingData.channel,
         guest_id: bookingData.guest_id,
+        guest_first_name: bookingData.guest_first_name,
+        guest_first_name_length: bookingData.guest_first_name?.length,
+        guest_last_name: bookingData.guest_last_name,
+        guest_last_name_length: bookingData.guest_last_name?.length,
+        guest_email: bookingData.guest_email,
         check_in: bookingData.check_in,
         check_out: bookingData.check_out
       });
+      
+      // Дополнительная проверка длины
+      if (bookingData.guest_first_name && bookingData.guest_first_name.length > 20) {
+        console.error('⚠️ guest_first_name слишком длинное!', bookingData.guest_first_name);
+      }
+      if (bookingData.guest_last_name && bookingData.guest_last_name.length > 20) {
+        console.error('⚠️ guest_last_name слишком длинное!', bookingData.guest_last_name);
+      }
       
       const { data, error } = await supabase
         .from('bookings')
@@ -600,6 +642,13 @@ class AirbnbChannexService {
 
       if (error) {
         console.error('❌ Ошибка сохранения в PMS БД:', error);
+        console.error('❌ Детали ошибки:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          bookingData: bookingData
+        });
         throw error;
       }
 
@@ -763,6 +812,12 @@ class AirbnbChannexService {
       
     } catch (error) {
       console.error('❌ Ошибка обновления Airbnb availability:', error);
+      // Не прерываем процесс, если availability не обновился - бронирование уже создано
+      // 404 ошибка может означать, что endpoint не существует или изменился
+      if (error.message && error.message.includes('404')) {
+        console.warn('⚠️ Availability endpoint не найден (404), но бронирование создано успешно');
+        return null;
+      }
       throw error;
     }
   }

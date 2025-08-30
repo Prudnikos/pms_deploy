@@ -11,7 +11,7 @@
         "airbnb_room_title": "Standard Room",
         "base_price": "100",
         "max_occupancy": 2,
-        "availability_count": 5
+        "availability_count": 1
       },
       "deluxe_room": {
         "pms_room_number": "Deluxe Room", 
@@ -21,16 +21,26 @@
         "airbnb_room_title": "Deluxe Room",
         "base_price": "200",
         "max_occupancy": 2,
-        "availability_count": 5
+        "availability_count": 1
       },
       "suite": {
-        "pms_room_number": "Suite",
+        "pms_room_number": "Deluxe Suite Apartment",
         "pms_room_type": "Suite", 
         "channex_room_type_id": "e243d5aa-eff3-43a7-8bf8-87352b62fdc3",
-        "channex_rate_plan_id": "0661e606-18e5-4ad3-bda0-ade13d29b76b",
-        "airbnb_room_title": "Suite",
-        "base_price": "200",
-        "max_occupancy": 4,
+        "channex_rate_plan_id": "45195f3e-fb59-4ddf-9e29-b667dbe2ab58",
+        "airbnb_room_title": "Deluxe suite apartment",
+        "base_price": "300",
+        "max_occupancy": 6,
+        "availability_count": 1
+      },
+      "villa_first_floor": {
+        "pms_room_number": "Villa First Floor",
+        "pms_room_type": "Villa",
+        "channex_room_type_id": "c14d8272-5406-40d0-b7d9-726513a13b5c",
+        "channex_rate_plan_id": "aa96a05e-f1a5-4e78-a9cb-0638ee1140f2",
+        "airbnb_room_title": "Villa First Floor",
+        "base_price": "300",
+        "max_occupancy": 8,
         "availability_count": 1
       }
     },

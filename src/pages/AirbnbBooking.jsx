@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Calendar, Users, MapPin, Star, Heart, Share, Wifi, Car, Tv, AirVent, Utensils, ArrowLeft, CreditCard, Shield, Clock, Info } from 'lucide-react';
+import { Calendar, Users, MapPin, Star, Heart, Share, Wifi, Car, Tv, AirVent, Utensils, ArrowLeft, CreditCard, Shield, Clock, Info, Coffee } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -60,7 +60,7 @@ const roomsData = {
     }
   },
   'suite': {
-    title: 'Suite',
+    title: 'Deluxe suite apartment',
     type: 'Люкс целиком',
     location: 'Унаватуна, Шри-Ланка',
     guests: 4,
@@ -80,6 +80,29 @@ const roomsData = {
       avatar: '👨‍💼',
       yearsHosting: 4
     }
+  },
+  'villa_first_floor': {
+    title: 'Villa First Floor',
+    type: 'Вилла целиком',
+    location: 'Унаватуна, Шри-Ланка',
+    guests: 8,
+    bedrooms: 3,
+    bathrooms: 3,
+    rating: 4.95,
+    reviewsCount: 15,
+    amenities: [
+      { icon: Wifi, label: 'Wi-Fi' },
+      { icon: Car, label: 'Бесплатная парковка' },
+      { icon: Tv, label: 'ТВ' },
+      { icon: Coffee, label: 'Кофемашина' },
+      { icon: AirVent, label: 'Кондиционер' },
+      { icon: Utensils, label: 'Полностью оборудованная кухня' }
+    ],
+    host: {
+      name: 'Константин',
+      avatar: '👨‍💼',
+      yearsHosting: 4
+    }
   }
 };
 
@@ -91,11 +114,38 @@ export default function AirbnbBooking() {
   const roomId = searchParams.get('roomId');
   const checkIn = searchParams.get('checkin');
   const checkOut = searchParams.get('checkout');
-  const guestsCount = parseInt(searchParams.get('guests'));
-  const nights = parseInt(searchParams.get('nights'));
-  const pricePerNight = parseInt(searchParams.get('totalPrice')) / nights;
+  const guestsCount = parseInt(searchParams.get('guests')) || 2;
+  const nights = parseInt(searchParams.get('nights')) || 1;
+  const totalPriceParam = parseInt(searchParams.get('totalPrice'));
   
   const room = roomsData[roomId];
+  
+  // Определяем цену за ночь - используем либо из параметров, либо из конфигурации
+  let pricePerNight;
+  const pricePerNightParam = parseFloat(searchParams.get('pricePerNight'));
+  
+  if (pricePerNightParam && !isNaN(pricePerNightParam)) {
+    pricePerNight = pricePerNightParam;
+  } else if (totalPriceParam && !isNaN(totalPriceParam)) {
+    pricePerNight = totalPriceParam / nights;
+  } else {
+    // Fallback на цены из конфигурации
+    const roomPrices = {
+      'standard_room': 100,
+      'deluxe_room': 200,
+      'suite': 300,
+      'villa_first_floor': 300
+    };
+    pricePerNight = roomPrices[roomId] || 100;
+  }
+  
+  console.log('💰 Расчет цены:', {
+    roomId,
+    pricePerNightParam,
+    totalPriceParam,
+    nights,
+    calculatedPricePerNight: pricePerNight
+  });
   
   // Состояние формы
   const [guestInfo, setGuestInfo] = useState({
